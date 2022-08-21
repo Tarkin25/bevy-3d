@@ -1,8 +1,11 @@
+use std::{fmt::Debug, time::Duration};
+
 use bevy::{
     prelude::*,
-    window::{close_on_esc, WindowMode},
+    window::{close_on_esc, WindowMode}, utils::HashMap,
 };
 use camera_controller::CameraControllerPlugin;
+use chunk_generator::ChunkGenerator;
 use mesh_builder::MeshBuilder;
 use noise::{
     utils::{NoiseMapBuilder, PlaneMapBuilder},
@@ -10,9 +13,8 @@ use noise::{
 };
 use tap::Pipe;
 
-
 mod camera_controller;
-mod cubemap_material;
+mod chunk_generator;
 mod mesh_builder;
 
 #[macro_export]
@@ -32,29 +34,52 @@ struct VoxelConfig {
     material: Handle<StandardMaterial>,
 }
 
-struct Chunk([[[bool; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]);
+#[derive(Debug, Default, Deref, DerefMut)]
+pub struct ChunkGrid(HashMap<ChunkId, Chunk>);
+
+#[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ChunkId {
+    pub x: usize,
+    pub y: usize,
+    pub z: usize,
+}
+
+impl ChunkId {
+    pub fn new(x: usize, y: usize, z: usize) -> Self {
+        Self { x, y, z }
+    }
+}
+
+#[derive(Default, Component)]
+pub struct Chunk([[[bool; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]);
+
+impl Debug for Chunk {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Chunk").finish()
+    }
+}
 
 impl Chunk {
-    fn empty() -> Self {
+    pub fn empty() -> Self {
         Self([[[false; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE])
     }
 
-    fn is_solid(&self, x: usize, y: usize, z: usize) -> bool {
+    pub fn is_solid(&self, x: usize, y: usize, z: usize) -> bool {
         self.0[x][y][z]
     }
 
-    fn is_air(&self, x: usize, y: usize, z: usize) -> bool {
+    pub fn is_air(&self, x: usize, y: usize, z: usize) -> bool {
         !self.is_solid(x, y, z)
     }
 
-    fn set(&mut self, x: usize, y: usize, z: usize, value: bool) {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, value: bool) {
         self.0[x][y][z] = value;
     }
 
     /// http://ilkinulas.github.io/development/unity/2016/04/30/cube-mesh-in-unity3d.html
     fn compute_mesh(&self) -> Mesh {
         let mut builder = MeshBuilder::default();
-        
+
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 for z in 0..CHUNK_SIZE {
@@ -88,33 +113,17 @@ impl Chunk {
     }
 }
 
-fn generate_chunk() -> Chunk {
-    let mut chunk = Chunk::empty();
-    let perlin = Perlin::new();
-    let map = PlaneMapBuilder::new(&perlin)
-        .set_size(CHUNK_SIZE, CHUNK_SIZE)
-        .set_x_bounds(0.0, 1.0)
-        .set_y_bounds(0.0, 1.0)
-        .build();
+#[derive(Deref, DerefMut, Default, Debug)]
+pub struct ChunkLoadQueue(Vec<ChunkId>);
 
-    for x in 0..CHUNK_SIZE {
-        for z in 0..CHUNK_SIZE {
-            let y = map
-                .get_value(x, z)
-                .pipe(|y| y * MAX_HEIGHT)
-                .pipe(f64::round)
-                .pipe(|y| y as usize);
+#[derive(Deref, DerefMut, Default, Debug)]
+pub struct ChunkUnloadQueue(Vec<(Entity, ChunkId)>);
 
-            for y in 0..y {
-                chunk.set(x, y, z, true);
-            }
-        }
-    }
-
-    chunk
-}
-
-fn custom_mesh_setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
+fn custom_mesh_setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     let mut builder = MeshBuilder::default();
     builder.move_to(vec3!(0, 0, 0));
     builder.face_front();
@@ -124,9 +133,7 @@ fn custom_mesh_setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, m
     builder.face_right();
     builder.face_left();
 
-    let mesh = builder
-    .build()
-    .pipe(|mesh| meshes.add(mesh));
+    let mesh = builder.build().pipe(|mesh| meshes.add(mesh));
     let material = materials.add(Color::RED.into());
     let transform = Transform::from_xyz(0.0, 0.0, 0.0);
 
@@ -138,31 +145,92 @@ fn custom_mesh_setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, m
     });
 }
 
-fn setup_chunk(
-    mut has_run: Local<bool>,
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    config: Res<VoxelConfig>,
+#[derive(Deref, DerefMut)]
+struct GenerationTimer(Timer);
+
+fn generate_chunks(
+    mut z: Local<usize>,
+    time: Res<Time>,
+    mut timer: ResMut<GenerationTimer>,
+    mut chunk_load_queue: ResMut<ChunkLoadQueue>,
 ) {
-    if !*has_run {
-        let chunk = generate_chunk();
-        let mesh = chunk.compute_mesh();
+    timer.tick(time.delta());
 
-        commands.spawn_bundle(PbrBundle {
-            material: config.material.clone(),
-            mesh: meshes.add(mesh),
-            ..Default::default()
-        });
-
-        *has_run = true;
+    if timer.just_finished() {
+        let chunk_id = ChunkId::new(0, 0, *z);
+        info!("Adding {chunk_id:?}");
+        chunk_load_queue.push(chunk_id);
+        *z += 1;
     }
 }
 
-fn setup_config(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+#[derive(Deref, DerefMut)]
+struct DespawnTimer(Timer);
+
+fn despawn_chunks(
+    time: Res<Time>,
+    mut timer: ResMut<DespawnTimer>,
+    mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
+    chunks: Query<(Entity, &ChunkId)>,
 ) {
+    timer.tick(time.delta());
+
+    if timer.just_finished() {
+        if let Some((entity, chunk_id)) = chunks.iter().next() {
+            info!("Removing {chunk_id:?}");
+            chunk_unload_queue.push((entity, *chunk_id));
+        }
+    }
+}
+
+fn load_chunks(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut chunk_load_queue: ResMut<ChunkLoadQueue>,
+    config: Res<VoxelConfig>,
+    generator: Res<ChunkGenerator>,
+    mut grid: ResMut<ChunkGrid>,
+) {
+    while let Some(chunk_id) = chunk_load_queue.pop() {
+        let ChunkId { x, y, z } = chunk_id;
+        let position = [x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE];
+        let chunk = generator.generate(position); // TODO - separate chunk generation from mesh computation
+        let mesh = chunk.compute_mesh();
+        let transform =
+            Transform::from_xyz(position[0] as f32, position[1] as f32, position[2] as f32);
+
+        commands
+            .spawn_bundle(PbrBundle {
+                mesh: meshes.add(mesh),
+                material: config.material.clone(),
+                transform,
+                ..Default::default()
+            })
+            .insert(chunk_id);
+
+        grid.insert(chunk_id, chunk);
+    }
+}
+
+fn unload_chunks(
+    mut commands: Commands,
+    mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
+    mut grid: ResMut<ChunkGrid>,
+) {
+    while let Some((entity, chunk_id)) = chunk_unload_queue.pop() {
+        commands.entity(entity).despawn();
+        grid.remove(&chunk_id);
+    }
+}
+
+fn setup_config(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
     let material = materials.add(Color::GREEN.into());
+    let perlin = Perlin::new();
+    let _noise_map = PlaneMapBuilder::new(&perlin)
+        .set_size(1024, 1024)
+        .set_x_bounds(0.0, 1.0)
+        .set_y_bounds(0.0, 1.0)
+        .build();
 
     commands.insert_resource(VoxelConfig { material });
 }
@@ -194,10 +262,19 @@ fn main() {
             transform: Transform::from_xyz(0.5, 1.0, -1.0)
                 .looking_at(Vec3::new(0.5, 0.5, 0.5), Vec3::Y),
         })
+        .insert_resource(ChunkLoadQueue::default())
+        .insert_resource(ChunkUnloadQueue::default())
+        .insert_resource(ChunkGenerator)
+        .insert_resource(ChunkGrid::default())
+        .insert_resource(GenerationTimer(Timer::new(Duration::from_secs(1), true)))
+        .insert_resource(DespawnTimer(Timer::new(Duration::from_secs(1), true)))
         .add_startup_system(setup_config)
         .add_startup_system(setup_light)
         .add_startup_system(custom_mesh_setup)
-        .add_system(setup_chunk)
+        .add_system(generate_chunks)
+        .add_system(despawn_chunks)
+        .add_system(load_chunks)
+        .add_system(unload_chunks)
         .add_system(close_on_esc)
         .run();
 }
