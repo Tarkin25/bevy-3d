@@ -2,10 +2,11 @@ use std::{fmt::Debug, time::Duration};
 
 use bevy::{
     prelude::*,
-    window::{close_on_esc, WindowMode}, utils::HashMap,
+    window::{close_on_esc, WindowMode},
 };
-use camera_controller::CameraControllerPlugin;
+use camera_controller::{CameraControllerPlugin, CameraController};
 use chunk_generator::ChunkGenerator;
+use grid::{GridCoordinates, ChunkGrid};
 use mesh_builder::MeshBuilder;
 use noise::{
     utils::{NoiseMapBuilder, PlaneMapBuilder},
@@ -16,6 +17,7 @@ use tap::Pipe;
 mod camera_controller;
 mod chunk_generator;
 mod mesh_builder;
+pub mod grid;
 
 #[macro_export]
 macro_rules! vec3 {
@@ -27,39 +29,11 @@ macro_rules! vec3 {
 const CHUNK_SIZE: usize = 25;
 const CHUNK_LOWER_BOUND: usize = 0;
 const CHUNK_UPPER_BOUND: usize = CHUNK_SIZE - 1;
-const MAX_HEIGHT: f64 = 10.0;
 const VOXEL_SIZE: f32 = 1.0;
+const RENDER_DISTANCE: isize = 10;
 
 struct VoxelConfig {
     material: Handle<StandardMaterial>,
-}
-
-#[derive(Debug, Default, Deref, DerefMut)]
-pub struct ChunkGrid(HashMap<GridCoordinates, Chunk>);
-
-#[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GridCoordinates {
-    pub x: usize,
-    pub y: usize,
-    pub z: usize,
-}
-
-impl GridCoordinates {
-    pub fn new(x: usize, y: usize, z: usize) -> Self {
-        Self { x, y, z }
-    }
-}
-
-impl From<GridCoordinates> for Vec3 {
-    fn from(g: GridCoordinates) -> Self {
-        Self { x: g.x as f32, y: g.y as f32, z: g.z as f32 }
-    }
-}
-
-impl From<GridCoordinates> for [usize; 3] {
-    fn from(GridCoordinates { x, y, z }: GridCoordinates) -> Self {
-        [x, y, z]
-    }
 }
 
 #[derive(Default, Component)]
@@ -161,18 +135,22 @@ fn custom_mesh_setup(
 struct GenerationTimer(Timer);
 
 fn generate_chunks(
-    mut z: Local<usize>,
-    time: Res<Time>,
-    mut timer: ResMut<GenerationTimer>,
     mut chunk_load_queue: ResMut<ChunkLoadQueue>,
+    player: Query<&Transform, With<CameraController>>,
+    grid: Res<ChunkGrid>,
 ) {
-    timer.tick(time.delta());
+    let translation = player.single().translation;
+    let player_xz_coordinates = GridCoordinates::new(translation.x.round() as isize, 0, translation.z.round() as isize);
+    let player_grid_coordinates = player_xz_coordinates.to_grid();
 
-    if timer.just_finished() {
-        let coordinates = GridCoordinates::new(0, 0, *z * CHUNK_SIZE);
-        info!("Adding chunk at {coordinates:?}");
-        chunk_load_queue.push(coordinates);
-        *z += 1;
+    for x in -RENDER_DISTANCE..=RENDER_DISTANCE {
+        for z in -RENDER_DISTANCE..=RENDER_DISTANCE {
+            let chunk_coordinates = player_grid_coordinates + [x * CHUNK_SIZE as isize, 0, z * CHUNK_SIZE as isize];
+            
+            if !grid.contains_key(&chunk_coordinates) {
+                chunk_load_queue.push(chunk_coordinates);
+            }
+        }
     }
 }
 
@@ -180,16 +158,25 @@ fn generate_chunks(
 struct DespawnTimer(Timer);
 
 fn despawn_chunks(
-    time: Res<Time>,
-    mut timer: ResMut<DespawnTimer>,
     mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
     chunks: Query<(Entity, &GridCoordinates)>,
+    player: Query<&Transform, With<CameraController>>,
+    grid: Res<ChunkGrid>,
 ) {
-    timer.tick(time.delta());
+    let translation = player.single().translation;
+    let player_xz_coordinates = GridCoordinates::new(translation.x.round() as isize, 0, translation.z.round() as isize);
+    let player_grid_coordinates = player_xz_coordinates.to_grid();
+    let bounds_distance = CHUNK_SIZE as isize * RENDER_DISTANCE;
 
-    if timer.just_finished() {
-        if let Some((entity, coordinates)) = chunks.iter().next() {
-            info!("Removing chunk at {coordinates:?}");
+    for (entity, coordinates) in &chunks {
+        let is_outside_pos_x = player_grid_coordinates.x + bounds_distance < coordinates.x;
+        let is_outside_neg_x = player_grid_coordinates.x - bounds_distance > coordinates.x;
+        let is_outside_pos_z = player_grid_coordinates.z + bounds_distance < coordinates.z;
+        let is_outside_neg_z = player_grid_coordinates.z - bounds_distance > coordinates.z;
+
+        let is_outside_render_distance = is_outside_pos_x || is_outside_neg_x || is_outside_pos_z || is_outside_neg_z;
+        
+        if is_outside_render_distance && grid.contains_key(coordinates) {
             chunk_unload_queue.push((entity, *coordinates));
         }
     }
