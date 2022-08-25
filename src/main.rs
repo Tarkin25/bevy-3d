@@ -35,18 +35,30 @@ struct VoxelConfig {
 }
 
 #[derive(Debug, Default, Deref, DerefMut)]
-pub struct ChunkGrid(HashMap<ChunkId, Chunk>);
+pub struct ChunkGrid(HashMap<GridCoordinates, Chunk>);
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ChunkId {
+pub struct GridCoordinates {
     pub x: usize,
     pub y: usize,
     pub z: usize,
 }
 
-impl ChunkId {
+impl GridCoordinates {
     pub fn new(x: usize, y: usize, z: usize) -> Self {
         Self { x, y, z }
+    }
+}
+
+impl From<GridCoordinates> for Vec3 {
+    fn from(g: GridCoordinates) -> Self {
+        Self { x: g.x as f32, y: g.y as f32, z: g.z as f32 }
+    }
+}
+
+impl From<GridCoordinates> for [usize; 3] {
+    fn from(GridCoordinates { x, y, z }: GridCoordinates) -> Self {
+        [x, y, z]
     }
 }
 
@@ -114,10 +126,10 @@ impl Chunk {
 }
 
 #[derive(Deref, DerefMut, Default, Debug)]
-pub struct ChunkLoadQueue(Vec<ChunkId>);
+pub struct ChunkLoadQueue(Vec<GridCoordinates>);
 
 #[derive(Deref, DerefMut, Default, Debug)]
-pub struct ChunkUnloadQueue(Vec<(Entity, ChunkId)>);
+pub struct ChunkUnloadQueue(Vec<(Entity, GridCoordinates)>);
 
 fn custom_mesh_setup(
     mut commands: Commands,
@@ -157,9 +169,9 @@ fn generate_chunks(
     timer.tick(time.delta());
 
     if timer.just_finished() {
-        let chunk_id = ChunkId::new(0, 0, *z);
-        info!("Adding {chunk_id:?}");
-        chunk_load_queue.push(chunk_id);
+        let coordinates = GridCoordinates::new(0, 0, *z * CHUNK_SIZE);
+        info!("Adding chunk at {coordinates:?}");
+        chunk_load_queue.push(coordinates);
         *z += 1;
     }
 }
@@ -171,14 +183,14 @@ fn despawn_chunks(
     time: Res<Time>,
     mut timer: ResMut<DespawnTimer>,
     mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
-    chunks: Query<(Entity, &ChunkId)>,
+    chunks: Query<(Entity, &GridCoordinates)>,
 ) {
     timer.tick(time.delta());
 
     if timer.just_finished() {
-        if let Some((entity, chunk_id)) = chunks.iter().next() {
-            info!("Removing {chunk_id:?}");
-            chunk_unload_queue.push((entity, *chunk_id));
+        if let Some((entity, coordinates)) = chunks.iter().next() {
+            info!("Removing chunk at {coordinates:?}");
+            chunk_unload_queue.push((entity, *coordinates));
         }
     }
 }
@@ -191,13 +203,10 @@ fn load_chunks(
     generator: Res<ChunkGenerator>,
     mut grid: ResMut<ChunkGrid>,
 ) {
-    while let Some(chunk_id) = chunk_load_queue.pop() {
-        let ChunkId { x, y, z } = chunk_id;
-        let position = [x * CHUNK_SIZE, y * CHUNK_SIZE, z * CHUNK_SIZE];
-        let chunk = generator.generate(position); // TODO - separate chunk generation from mesh computation
+    while let Some(coordinates) = chunk_load_queue.pop() {
+        let chunk = generator.generate(coordinates.into()); // TODO - separate chunk generation from mesh computation
         let mesh = chunk.compute_mesh();
-        let transform =
-            Transform::from_xyz(position[0] as f32, position[1] as f32, position[2] as f32);
+        let transform = Transform::from_translation(coordinates.into());
 
         commands
             .spawn_bundle(PbrBundle {
@@ -206,9 +215,9 @@ fn load_chunks(
                 transform,
                 ..Default::default()
             })
-            .insert(chunk_id);
+            .insert(coordinates);
 
-        grid.insert(chunk_id, chunk);
+        grid.insert(coordinates, chunk);
     }
 }
 
