@@ -5,7 +5,7 @@ use bevy::{prelude::*, utils::HashMap};
 use crate::{CHUNK_SIZE, Chunk};
 
 #[derive(Debug, Default, Deref, DerefMut)]
-pub struct ChunkGrid(HashMap<GridCoordinates, Chunk>);
+pub struct ChunkGrid(HashMap<GridCoordinates, Option<Chunk>>);
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridCoordinates {

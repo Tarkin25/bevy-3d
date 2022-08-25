@@ -1,8 +1,8 @@
-use std::{fmt::Debug, time::Duration};
+use std::{fmt::Debug, sync::Arc, time::{Instant, Duration}};
 
 use bevy::{
     prelude::*,
-    window::{close_on_esc, WindowMode},
+    window::{close_on_esc, WindowMode}, tasks::{Task, AsyncComputeTaskPool},
 };
 use camera_controller::{CameraControllerPlugin, CameraController};
 use chunk_generator::ChunkGenerator;
@@ -13,6 +13,7 @@ use noise::{
     Perlin,
 };
 use tap::Pipe;
+use futures_lite::future;
 
 mod camera_controller;
 mod chunk_generator;
@@ -95,6 +96,13 @@ impl Chunk {
             }
         }
 
+        let start_time = Instant::now();
+        let duration = Duration::from_millis(10);
+
+        while start_time.elapsed() < duration {
+            // spin
+        }
+
         builder.build()
     }
 }
@@ -111,7 +119,7 @@ fn custom_mesh_setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let mut builder = MeshBuilder::default();
-    builder.move_to(vec3!(0, 0, 0));
+    builder.move_to(vec3!(0, 1, 0));
     builder.face_front();
     builder.face_top();
     builder.face_bottom();
@@ -131,44 +139,100 @@ fn custom_mesh_setup(
     });
 }
 
-#[derive(Deref, DerefMut)]
-struct GenerationTimer(Timer);
+#[derive(Component)]
+struct GenerateChunk(Task<Chunk>);
+
+#[derive(Component)]
+struct ComputeMesh(Task<(Chunk, Mesh)>);
 
 fn generate_chunks(
-    mut chunk_load_queue: ResMut<ChunkLoadQueue>,
+    mut commands: Commands,
     player: Query<&Transform, With<CameraController>>,
-    grid: Res<ChunkGrid>,
+    mut grid: ResMut<ChunkGrid>,
+    generator: Res<Arc<ChunkGenerator>>,
 ) {
     let translation = player.single().translation;
     let player_xz_coordinates = GridCoordinates::new(translation.x.round() as isize, 0, translation.z.round() as isize);
     let player_grid_coordinates = player_xz_coordinates.to_grid();
+    let task_pool = AsyncComputeTaskPool::get();
 
     for x in -RENDER_DISTANCE..=RENDER_DISTANCE {
         for z in -RENDER_DISTANCE..=RENDER_DISTANCE {
             let chunk_coordinates = player_grid_coordinates + [x * CHUNK_SIZE as isize, 0, z * CHUNK_SIZE as isize];
             
             if !grid.contains_key(&chunk_coordinates) {
-                chunk_load_queue.push(chunk_coordinates);
+                let generator = Arc::clone(&generator);
+                
+                let task = task_pool.spawn(async move {
+                    generator.generate(chunk_coordinates.into())
+                });
+
+                commands.spawn()
+                .insert(GenerateChunk(task))
+                .insert(chunk_coordinates);
+
+                grid.insert(chunk_coordinates, None);
             }
         }
     }
 }
 
-#[derive(Deref, DerefMut)]
-struct DespawnTimer(Timer);
+fn compute_meshes(
+    mut commands: Commands,
+    mut generation_tasks: Query<(Entity, &mut GenerateChunk)>,
+) {
+    let task_pool = AsyncComputeTaskPool::get();
 
-fn despawn_chunks(
-    mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
-    chunks: Query<(Entity, &GridCoordinates)>,
+    for (entity, mut generation_task) in &mut generation_tasks {
+        if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
+            let task = task_pool.spawn(async move {
+                let mesh = chunk.compute_mesh();
+
+                (chunk, mesh)
+            });
+
+            let mut entity = commands.entity(entity);
+            entity.insert(ComputeMesh(task));
+            entity.remove::<GenerateChunk>();
+        }
+    }
+}
+
+fn spawn_chunks(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    config: Res<VoxelConfig>,
+    mut grid: ResMut<ChunkGrid>,
+    mut mesh_computation_tasks: Query<(Entity, &mut ComputeMesh, &GridCoordinates)>
+) {
+    for (entity, mut mesh_computation_task, coordinates) in &mut mesh_computation_tasks {
+        if let Some((chunk, mesh)) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
+            let mut entity = commands.entity(entity);
+            entity.insert_bundle(PbrBundle {
+                mesh: meshes.add(mesh),
+                material: config.material.clone(),
+                transform: Transform::from_translation((*coordinates).into()),
+                ..Default::default()
+            });
+            entity.remove::<ComputeMesh>();
+
+            grid.insert(*coordinates, Some(chunk));
+        }
+    }
+}
+
+fn unload_chunks(
+    mut commands: Commands,
+    mut chunks: Query<(Entity, &GridCoordinates), (Without<GenerateChunk>, Without<ComputeMesh>)>,
     player: Query<&Transform, With<CameraController>>,
-    grid: Res<ChunkGrid>,
+    mut grid: ResMut<ChunkGrid>,
 ) {
     let translation = player.single().translation;
     let player_xz_coordinates = GridCoordinates::new(translation.x.round() as isize, 0, translation.z.round() as isize);
     let player_grid_coordinates = player_xz_coordinates.to_grid();
     let bounds_distance = CHUNK_SIZE as isize * RENDER_DISTANCE;
 
-    for (entity, coordinates) in &chunks {
+    for (entity, coordinates) in &mut chunks {
         let is_outside_pos_x = player_grid_coordinates.x + bounds_distance < coordinates.x;
         let is_outside_neg_x = player_grid_coordinates.x - bounds_distance > coordinates.x;
         let is_outside_pos_z = player_grid_coordinates.z + bounds_distance < coordinates.z;
@@ -177,45 +241,9 @@ fn despawn_chunks(
         let is_outside_render_distance = is_outside_pos_x || is_outside_neg_x || is_outside_pos_z || is_outside_neg_z;
         
         if is_outside_render_distance && grid.contains_key(coordinates) {
-            chunk_unload_queue.push((entity, *coordinates));
+            grid.remove(coordinates);
+            commands.entity(entity).despawn();
         }
-    }
-}
-
-fn load_chunks(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut chunk_load_queue: ResMut<ChunkLoadQueue>,
-    config: Res<VoxelConfig>,
-    generator: Res<ChunkGenerator>,
-    mut grid: ResMut<ChunkGrid>,
-) {
-    while let Some(coordinates) = chunk_load_queue.pop() {
-        let chunk = generator.generate(coordinates.into()); // TODO - separate chunk generation from mesh computation
-        let mesh = chunk.compute_mesh();
-        let transform = Transform::from_translation(coordinates.into());
-
-        commands
-            .spawn_bundle(PbrBundle {
-                mesh: meshes.add(mesh),
-                material: config.material.clone(),
-                transform,
-                ..Default::default()
-            })
-            .insert(coordinates);
-
-        grid.insert(coordinates, chunk);
-    }
-}
-
-fn unload_chunks(
-    mut commands: Commands,
-    mut chunk_unload_queue: ResMut<ChunkUnloadQueue>,
-    mut grid: ResMut<ChunkGrid>,
-) {
-    while let Some((entity, chunk_id)) = chunk_unload_queue.pop() {
-        commands.entity(entity).despawn();
-        grid.remove(&chunk_id);
     }
 }
 
@@ -260,16 +288,14 @@ fn main() {
         })
         .insert_resource(ChunkLoadQueue::default())
         .insert_resource(ChunkUnloadQueue::default())
-        .insert_resource(ChunkGenerator)
+        .insert_resource(Arc::new(ChunkGenerator))
         .insert_resource(ChunkGrid::default())
-        .insert_resource(GenerationTimer(Timer::new(Duration::from_secs(1), true)))
-        .insert_resource(DespawnTimer(Timer::new(Duration::from_secs(1), true)))
         .add_startup_system(setup_config)
         .add_startup_system(setup_light)
         .add_startup_system(custom_mesh_setup)
         .add_system(generate_chunks)
-        .add_system(despawn_chunks)
-        .add_system(load_chunks)
+        .add_system(compute_meshes)
+        .add_system(spawn_chunks)
         .add_system(unload_chunks)
         .add_system(close_on_esc)
         .run();
