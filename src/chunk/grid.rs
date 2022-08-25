@@ -2,9 +2,9 @@ use std::ops::{Add, Sub};
 
 use bevy::{prelude::*, utils::HashMap};
 
-use crate::{CHUNK_SIZE, Chunk};
+use super::Chunk;
 
-#[derive(Debug, Default, Deref, DerefMut)]
+#[derive(Default, Deref, DerefMut)]
 pub struct ChunkGrid(HashMap<GridCoordinates, Option<Chunk>>);
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,9 +20,9 @@ impl GridCoordinates {
     }
 
     pub fn to_grid(mut self) -> Self {
-        self.x -= self.x % CHUNK_SIZE as isize;
-        self.y -= self.y % CHUNK_SIZE as isize;
-        self.z -= self.z % CHUNK_SIZE as isize;
+        self.x -= self.x % Chunk::WIDTH as isize;
+        self.y -= self.y % Chunk::WIDTH as isize;
+        self.z -= self.z % Chunk::WIDTH as isize;
 
         self
     }
@@ -58,7 +58,7 @@ impl Sub for GridCoordinates {
 
 impl Add<[isize; 3]> for GridCoordinates {
     type Output = GridCoordinates;
-    
+
     fn add(mut self, [x, y, z]: [isize; 3]) -> Self::Output {
         self.x += x;
         self.y += y;
@@ -70,7 +70,11 @@ impl Add<[isize; 3]> for GridCoordinates {
 
 impl From<GridCoordinates> for Vec3 {
     fn from(g: GridCoordinates) -> Self {
-        Self { x: g.x as f32, y: g.y as f32, z: g.z as f32 }
+        Self {
+            x: g.x as f32,
+            y: g.y as f32,
+            z: g.z as f32,
+        }
     }
 }
 
