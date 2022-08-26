@@ -1,21 +1,25 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use bevy::{prelude::*, tasks::{AsyncComputeTaskPool, Task}};
+
 use futures_lite::future;
 
-use crate::{camera_controller::CameraController, mesh_builder::{MeshBuilder, MeshBuilderSettings}, vec3, settings::Settings, VoxelConfig};
+use crate::{settings::Settings, VoxelConfig, vec3};
 
-use self::{grid::{ChunkGrid, GridCoordinates}, generator::ChunkGenerator};
+use self::{generator::ChunkGenerator, grid::{ChunkGrid, GridCoordinates}, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
 
-pub mod grid;
+use super::camera_controller::CameraController;
+
 pub mod generator;
+pub mod grid;
+pub mod mesh_builder;
 
 pub struct ChunkPlugin;
 
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
         app
-        .insert_resource(Arc::new(ChunkGenerator::default()))
+        .insert_resource(Arc::new(RwLock::new(ChunkGenerator::default())))
         .insert_resource(ChunkGrid::default())
         .add_system(generate_chunks)
         .add_system(compute_meshes)
@@ -102,7 +106,7 @@ fn generate_chunks(
     mut commands: Commands,
     player: Query<&Transform, With<CameraController>>,
     mut grid: ResMut<ChunkGrid>,
-    generator: Res<Arc<ChunkGenerator>>,
+    generator: Res<Arc<RwLock<ChunkGenerator>>>,
     settings: Res<Settings>,
 ) {
     let translation = player.single().translation;
@@ -123,7 +127,7 @@ fn generate_chunks(
                 let generator = Arc::clone(&generator);
 
                 let task =
-                    task_pool.spawn(async move { generator.generate(chunk_coordinates.into()) });
+                    task_pool.spawn(async move { generator.read().unwrap().generate(chunk_coordinates.into()) });
 
                 commands
                     .spawn()
@@ -217,7 +221,7 @@ fn unload_chunks(
 }
 
 #[derive(Component)]
-struct DespawnChunk;
+pub struct DespawnChunk;
 
 fn despawn_chunks(mut commands: Commands, chunks: Query<Entity, (With<DespawnChunk>, Without<GenerateChunk>, Without<ComputeMesh>)>) {
     for entity in chunks.iter().take(20) {

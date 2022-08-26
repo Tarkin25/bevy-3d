@@ -3,7 +3,7 @@ use bevy::{
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
 
-use super::vec3;
+use crate::vec3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct MeshBuilderSettings {

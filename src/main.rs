@@ -1,23 +1,57 @@
 use bevy::{
     prelude::*,
-    window::{close_on_esc, WindowMode},
+    window::WindowMode,
 };
-use camera_controller::CameraControllerPlugin;
-use chunk::ChunkPlugin;
-use mesh_builder::MeshBuilder;
+use bevy_egui::EguiPlugin;
+use game::{chunk::{mesh_builder::MeshBuilder, ChunkPlugin}, camera_controller::CameraControllerPlugin};
+use menu::MenuPlugin;
 use settings::{Settings, SettingsPlugin};
+use style::StylePlugin;
 use tap::Pipe;
-
-mod camera_controller;
-mod mesh_builder;
-pub mod chunk;
 pub mod settings;
+mod menu;
+mod button_test;
+pub mod style;
+mod game;
 
 #[macro_export]
 macro_rules! vec3 {
     ($x: expr, $y: expr, $z: expr) => {
         Vec3::new($x as f32, $y as f32, $z as f32)
     };
+}
+
+fn main() {
+    App::new()
+        .insert_resource(WindowDescriptor {
+            title: "Voxels".into(),
+            cursor_locked: true,
+            cursor_visible: false,
+            mode: WindowMode::Fullscreen,
+            ..Default::default()
+        })
+        .add_plugins(DefaultPlugins)
+        .add_plugin(EguiPlugin)
+        .add_plugin(CameraControllerPlugin {
+            transform: Transform::from_xyz(0.5, 1.0, -1.0)
+                .looking_at(Vec3::new(0.5, 0.5, 0.5), Vec3::Y),
+        })
+        .add_plugin(ChunkPlugin)
+        .add_plugin(SettingsPlugin)
+        .add_plugin(MenuPlugin)
+        .add_plugin(StylePlugin)
+        .add_state(AppState::InGame)
+        .add_startup_system(setup_config)
+        .add_startup_system(setup_light)
+        .add_startup_system(custom_mesh_setup)
+        .add_system(toggle_app_state)
+        .run();
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AppState {
+    Menu,
+    InGame,
 }
 
 pub struct VoxelConfig {
@@ -70,25 +104,13 @@ fn setup_light(mut commands: Commands) {
     });
 }
 
-fn main() {
-    App::new()
-        .insert_resource(WindowDescriptor {
-            title: "Voxels".into(),
-            cursor_locked: true,
-            cursor_visible: false,
-            mode: WindowMode::Fullscreen,
-            ..Default::default()
-        })
-        .add_plugins(DefaultPlugins)
-        .add_plugin(CameraControllerPlugin {
-            transform: Transform::from_xyz(0.5, 1.0, -1.0)
-                .looking_at(Vec3::new(0.5, 0.5, 0.5), Vec3::Y),
-        })
-        .add_plugin(ChunkPlugin)
-        .add_plugin(SettingsPlugin)
-        .add_startup_system(setup_config)
-        .add_startup_system(setup_light)
-        .add_startup_system(custom_mesh_setup)
-        .add_system(close_on_esc)
-        .run();
+fn toggle_app_state(mut state: ResMut<State<AppState>>, input: Res<Input<KeyCode>>) {
+    if input.just_pressed(KeyCode::Escape) {
+        let new_state = match *state.current() {
+            AppState::InGame => AppState::Menu,
+            AppState::Menu => AppState::InGame,
+        };
+
+        state.set(new_state).unwrap();
+    }
 }
