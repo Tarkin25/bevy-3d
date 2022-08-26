@@ -20,7 +20,8 @@ impl Plugin for ChunkPlugin {
         .add_system(generate_chunks)
         .add_system(compute_meshes)
         .add_system(spawn_chunks)
-        .add_system(unload_chunks);
+        .add_system(unload_chunks)
+        .add_system(despawn_chunks);
     }
 }
 
@@ -28,7 +29,7 @@ impl Plugin for ChunkPlugin {
 pub struct Chunk(Vec<Vec<Vec<bool>>>);
 
 impl Chunk {
-    pub const WIDTH: usize = 32;
+    pub const WIDTH: usize = 16;
     pub const HEIGHT: usize = 256;
     pub const LOWER_BOUND: usize = 0;
     pub const UPPER_BOUND: usize = Chunk::WIDTH - 1;
@@ -84,6 +85,8 @@ impl Chunk {
                 }
             }
         }
+
+        //std::thread::sleep(std::time::Duration::from_millis(10));
 
         builder.build()
     }
@@ -163,7 +166,7 @@ fn spawn_chunks(
     mut grid: ResMut<ChunkGrid>,
     mut mesh_computation_tasks: Query<(Entity, &mut ComputeMesh, &GridCoordinates)>,
 ) {
-    for (entity, mut mesh_computation_task, coordinates) in &mut mesh_computation_tasks {
+    for (entity, mut mesh_computation_task, coordinates) in mesh_computation_tasks.iter_mut().take(20) {
         if let Some((chunk, mesh)) =
             future::block_on(future::poll_once(&mut mesh_computation_task.0))
         {
@@ -183,7 +186,7 @@ fn spawn_chunks(
 
 fn unload_chunks(
     mut commands: Commands,
-    mut chunks: Query<(Entity, &GridCoordinates), (Without<GenerateChunk>, Without<ComputeMesh>)>,
+    mut chunks: Query<(Entity, &GridCoordinates)>,
     player: Query<&Transform, With<CameraController>>,
     mut grid: ResMut<ChunkGrid>,
     settings: Res<Settings>,
@@ -208,7 +211,16 @@ fn unload_chunks(
 
         if is_outside_render_distance && grid.contains_key(coordinates) {
             grid.remove(coordinates);
-            commands.entity(entity).despawn();
+            commands.entity(entity).insert(DespawnChunk);
         }
+    }
+}
+
+#[derive(Component)]
+struct DespawnChunk;
+
+fn despawn_chunks(mut commands: Commands, chunks: Query<Entity, (With<DespawnChunk>, Without<GenerateChunk>, Without<ComputeMesh>)>) {
+    for entity in chunks.iter().take(20) {
+        commands.entity(entity).despawn();
     }
 }

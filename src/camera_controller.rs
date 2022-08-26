@@ -34,6 +34,7 @@ pub struct CameraController {
     pub key_up: KeyCode,
     pub key_down: KeyCode,
     pub key_run: KeyCode,
+    pub key_reset: KeyCode,
     pub walk_speed: f32,
     pub run_speed: f32,
     pub friction: f32,
@@ -55,6 +56,7 @@ impl Default for CameraController {
             key_up: KeyCode::Space,
             key_down: KeyCode::N,
             key_run: KeyCode::RShift,
+            key_reset: KeyCode::R,
             walk_speed: 20.0,
             run_speed: 40.0,
             friction: 0.5,
@@ -145,6 +147,10 @@ pub fn camera_controller(
             transform.rotation = Quat::from_euler(EulerRot::ZYX, 0.0, yaw, pitch);
             options.pitch = pitch;
             options.yaw = yaw;
+        }
+
+        if key_input.just_pressed(options.key_reset) {
+            transform.translation = Vec3::ZERO;
         }
     }
 }
