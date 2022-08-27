@@ -13,6 +13,7 @@ pub mod settings;
 mod menu;
 mod button_test;
 mod game;
+pub mod utils;
 
 #[macro_export]
 macro_rules! vec3 {

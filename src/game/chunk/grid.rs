@@ -1,11 +1,26 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Deref, DerefMut};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
+use dashmap::DashMap;
 
 use super::Chunk;
 
-#[derive(Default, Deref, DerefMut)]
-pub struct ChunkGrid(HashMap<GridCoordinates, Option<Chunk>>);
+#[derive(Default)]
+pub struct ChunkGrid(DashMap<GridCoordinates, Option<Chunk>>);
+
+impl Deref for ChunkGrid {
+    type Target = DashMap<GridCoordinates, Option<Chunk>>;
+    
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ChunkGrid {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[derive(Debug, Component, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GridCoordinates {
@@ -81,6 +96,12 @@ impl From<GridCoordinates> for Vec3 {
 impl From<GridCoordinates> for [isize; 3] {
     fn from(GridCoordinates { x, y, z }: GridCoordinates) -> Self {
         [x, y, z]
+    }
+}
+
+impl From<[isize; 3]> for GridCoordinates {
+    fn from([x, y, z]: [isize; 3]) -> Self {
+        Self { x, y, z }
     }
 }
 

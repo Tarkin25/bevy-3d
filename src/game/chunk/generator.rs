@@ -2,7 +2,7 @@ use bracket_noise::prelude::*;
 use splines::{Spline, Key, Interpolation};
 use tap::Pipe;
 
-use crate::settings::NoiseSettings;
+use crate::{settings::NoiseSettings, utils::ToUsize};
 
 use super::Chunk;
 
@@ -34,10 +34,10 @@ impl Default for PerlinNoiseGenerator {
 
 impl ChunkGenerator for PerlinNoiseGenerator {
     fn generate(&self, position: [isize; 3]) -> Chunk {
-        let mut chunk = Chunk::empty();
+        let mut chunk = Chunk::new(position.into());
 
-        for x in 0..Chunk::WIDTH {
-            for z in 0..Chunk::WIDTH {
+        for x in 0..Chunk::WIDTH.to_usize() {
+            for z in 0..Chunk::WIDTH.to_usize() {
                 let x_coord = (x as isize + position[0]) as f32 * self.scale;
                 let z_coord = (z as isize + position[2]) as f32 * self.scale;
 
@@ -89,10 +89,10 @@ impl ContinentalGenerator {
 
 impl ChunkGenerator for ContinentalGenerator {
     fn generate(&self, position: [isize; 3]) -> Chunk {
-        let mut chunk = Chunk::empty();
+        let mut chunk = Chunk::new(position.into());
 
-        for x in 0..Chunk::WIDTH {
-            for z in 0..Chunk::WIDTH {
+        for x in 0..Chunk::WIDTH.to_usize() {
+            for z in 0..Chunk::WIDTH.to_usize() {
                 let x_coord = (x as isize + position[0]) as f32 * self.noise_scale;
                 let z_coord = (z as isize + position[2]) as f32 * self.noise_scale;
                 let continentality = self.continental_noise.get_noise(x_coord, z_coord);

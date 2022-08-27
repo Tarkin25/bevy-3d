@@ -27,6 +27,7 @@ fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Setti
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub render_distance: isize,
+    pub update_chunks: bool,
     pub mesh_builder: MeshBuilderSettings,
     pub noise: NoiseSettings,
     prev_noise: NoiseSettings,
@@ -69,7 +70,8 @@ impl Default for NoiseSettings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            render_distance: 16,
+            render_distance: 0,
+            update_chunks: true,
             mesh_builder: Default::default(),
             noise: Default::default(),
             prev_noise: Default::default(),

@@ -94,6 +94,10 @@ fn show_menu(
                 ui.add(egui::DragValue::new(&mut settings.noise.scale).fixed_decimals(3));
             });
 
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut settings.update_chunks, "Update Chunks:");
+            });
+
             if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Resume")).clicked() {
                 state.set(AppState::InGame).unwrap();
             }else if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Exit")).clicked() {
@@ -110,7 +114,7 @@ fn apply_noise_settings(
     mut settings: ResMut<Settings>,
     generator: Res<Arc<RwLock<dyn ChunkGenerator>>>,
     chunks: Query<(Entity, &GridCoordinates)>,
-    mut grid: ResMut<ChunkGrid>,
+    grid: Res<Arc<ChunkGrid>>,
 ) {
     if settings.detect_changes() {
         generator.write().unwrap().apply_noise_settings(settings.noise);
