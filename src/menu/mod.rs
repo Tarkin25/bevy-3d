@@ -91,7 +91,7 @@ fn show_menu(
 
             ui.horizontal(|ui| {
                 ui.label("Scale:");
-                ui.add(egui::DragValue::new(&mut settings.noise.scale));
+                ui.add(egui::DragValue::new(&mut settings.noise.scale).fixed_decimals(3));
             });
 
             if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Resume")).clicked() {

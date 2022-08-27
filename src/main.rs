@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bevy::{
     prelude::*,
     window::WindowMode,

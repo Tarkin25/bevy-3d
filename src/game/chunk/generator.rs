@@ -77,10 +77,6 @@ impl ContinentalGenerator {
         let mut continental_noise = FastNoise::seeded(0);
         continental_noise.set_noise_type(NoiseType::PerlinFractal);
         continental_noise.set_fractal_type(FractalType::FBM);
-        continental_noise.set_fractal_octaves(5);
-        continental_noise.set_fractal_lacunarity(2.0);
-        continental_noise.set_fractal_gain(0.5);
-        continental_noise.set_frequency(2.0);
 
         Self {
             continental_noise,

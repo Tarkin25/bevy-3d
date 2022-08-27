@@ -56,12 +56,12 @@ pub struct NoiseSettings {
 impl Default for NoiseSettings {
     fn default() -> Self {
         Self {
-            octaves: 5,
+            octaves: 3,
             lacunarity: 2.0,
             gain: 0.5,
             frequency: 2.0,
             amplitude: 100.0,
-            scale: 0.01,
+            scale: 0.005,
         }
     }
 }

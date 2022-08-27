@@ -18,22 +18,30 @@ pub struct ChunkPlugin;
 
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
-        let generator = ContinentalGenerator::new(50, [
-            (-1.0, 50.0),
-            (0.0, 0.0),
-            (1.0, 50.0),
-        ]);
-        let generator: Arc<RwLock<dyn ChunkGenerator>> = Arc::new(RwLock::new(generator));
-        
         app
-        .insert_resource(generator)
         .insert_resource(ChunkGrid::default())
+        .add_startup_system(insert_generator)
         .add_system(generate_chunks)
         .add_system(compute_meshes)
         .add_system(spawn_chunks)
         .add_system(unload_chunks)
         .add_system(despawn_chunks);
     }
+}
+
+fn insert_generator(mut commands: Commands, settings: Res<Settings>) {
+    let mut generator = ContinentalGenerator::new(50, [
+        (-1.0, 50.0),
+        (-0.7, 80.0),
+        (-0.5, 75.0),
+        (-0.4, 20.0),
+        (0.0, 0.0),
+        (1.0, 50.0),
+    ]);
+    generator.apply_noise_settings(settings.noise);
+    let generator: Arc<RwLock<dyn ChunkGenerator>> = Arc::new(RwLock::new(generator));
+
+    commands.insert_resource(generator);
 }
 
 #[derive(Component)]
