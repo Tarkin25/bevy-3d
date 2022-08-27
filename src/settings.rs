@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext};
 
 use crate::game::chunk::mesh_builder::MeshBuilderSettings;
 
@@ -8,19 +7,8 @@ pub struct SettingsPlugin;
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Settings::default())
-            .add_system(update_render_distance)
-            .add_system(show_debug_info);
+            .add_system(update_render_distance);
     }
-}
-
-fn show_debug_info(mut context: ResMut<EguiContext>, settings: Res<Settings>) {
-    egui::Window::new("Debug")
-    .collapsible(false)
-    .title_bar(false)
-    .resizable(false)
-    .show(context.ctx_mut(), move |ui| {
-        ui.label(format!("Render Distance: {}", settings.render_distance));
-    });
 }
 
 fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Settings>) {
@@ -62,6 +50,7 @@ pub struct NoiseSettings {
     pub gain: f32,
     pub frequency: f32,
     pub amplitude: f32,
+    pub scale: f32,
 }
 
 impl Default for NoiseSettings {
@@ -72,6 +61,7 @@ impl Default for NoiseSettings {
             gain: 0.5,
             frequency: 2.0,
             amplitude: 100.0,
+            scale: 0.01,
         }
     }
 }

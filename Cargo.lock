@@ -236,6 +236,7 @@ dependencies = [
  "bracket-noise",
  "futures-lite",
  "noise",
+ "splines",
  "tap",
 ]
 
@@ -3128,6 +3129,12 @@ dependencies = [
  "bitflags",
  "num-traits",
 ]
+
+[[package]]
+name = "splines"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39c3ba77d6f4cc9405ff36c95b70292e59f814c2e07385a1b47121ba0f862c52"
 
 [[package]]
 name = "stdweb"

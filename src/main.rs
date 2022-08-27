@@ -3,15 +3,13 @@ use bevy::{
     window::WindowMode,
 };
 use bevy_egui::EguiPlugin;
-use game::{chunk::{mesh_builder::MeshBuilder, ChunkPlugin}, camera_controller::CameraControllerPlugin};
+use game::{chunk::{mesh_builder::MeshBuilder, ChunkPlugin}, camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use menu::MenuPlugin;
 use settings::{Settings, SettingsPlugin};
-use style::StylePlugin;
 use tap::Pipe;
 pub mod settings;
 mod menu;
 mod button_test;
-pub mod style;
 mod game;
 
 #[macro_export]
@@ -33,13 +31,12 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
-            transform: Transform::from_xyz(0.5, 1.0, -1.0)
-                .looking_at(Vec3::new(0.5, 0.5, 0.5), Vec3::Y),
+            transform: Transform::from_xyz(0.5, 100.0, -1.0),
         })
         .add_plugin(ChunkPlugin)
         .add_plugin(SettingsPlugin)
         .add_plugin(MenuPlugin)
-        .add_plugin(StylePlugin)
+        .add_plugin(DebugInfoPlugin)
         .add_state(AppState::InGame)
         .add_startup_system(setup_config)
         .add_startup_system(setup_light)
@@ -65,7 +62,7 @@ fn custom_mesh_setup(
     settings: Res<Settings>,
 ) {
     let mut builder = MeshBuilder::new(settings.mesh_builder);
-    builder.move_to(vec3!(0, 1, 0));
+    builder.move_to(vec3!(0, 100, 0));
     builder.face_front();
     builder.face_top();
     builder.face_bottom();

@@ -152,7 +152,7 @@ pub fn camera_controller(
         }
 
         if key_input.just_pressed(options.key_reset) {
-            transform.translation = Vec3::ZERO;
+            transform.translation = Vec3::new(0.0, 100.0, 0.0);
         }
     }
 }

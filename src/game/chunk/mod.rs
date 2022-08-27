@@ -6,7 +6,7 @@ use futures_lite::future;
 
 use crate::{settings::Settings, VoxelConfig, vec3};
 
-use self::{generator::ChunkGenerator, grid::{ChunkGrid, GridCoordinates}, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
+use self::{generator::{ChunkGenerator, ContinentalGenerator}, grid::{ChunkGrid, GridCoordinates}, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
 
 use super::camera_controller::CameraController;
 
@@ -18,8 +18,15 @@ pub struct ChunkPlugin;
 
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
+        let generator = ContinentalGenerator::new(50, [
+            (-1.0, 50.0),
+            (0.0, 0.0),
+            (1.0, 50.0),
+        ]);
+        let generator: Arc<RwLock<dyn ChunkGenerator>> = Arc::new(RwLock::new(generator));
+        
         app
-        .insert_resource(Arc::new(RwLock::new(ChunkGenerator::default())))
+        .insert_resource(generator)
         .insert_resource(ChunkGrid::default())
         .add_system(generate_chunks)
         .add_system(compute_meshes)
@@ -106,7 +113,7 @@ fn generate_chunks(
     mut commands: Commands,
     player: Query<&Transform, With<CameraController>>,
     mut grid: ResMut<ChunkGrid>,
-    generator: Res<Arc<RwLock<ChunkGenerator>>>,
+    generator: Res<Arc<RwLock<dyn ChunkGenerator>>>,
     settings: Res<Settings>,
 ) {
     let translation = player.single().translation;
