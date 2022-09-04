@@ -183,7 +183,7 @@ impl Chunk {
 struct GenerateChunk(Task<Chunk>);
 
 #[derive(Component)]
-struct ComputeMesh(Task<(Chunk, Mesh)>);
+struct ComputeMesh(Task<Mesh>);
 
 fn generate_chunks(
     mut commands: Commands,
@@ -228,20 +228,18 @@ fn generate_chunks(
 
 fn compute_meshes(
     mut commands: Commands,
-    mut generation_tasks: Query<(Entity, &mut GenerateChunk)>,
-    settings: Res<Settings>,
+    mut generation_tasks: Query<(Entity, &mut GenerateChunk, &GridCoordinates)>,
     grid: Res<Arc<ChunkGrid>>,
 ) {
     let task_pool = AsyncComputeTaskPool::get();
 
-    for (entity, mut generation_task) in &mut generation_tasks {
+    for (entity, mut generation_task, coordinates) in &mut generation_tasks {
         if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
-            let mesh_builder_settings = settings.mesh_builder.clone();
+            let coordinates = *coordinates;
+            grid.insert(coordinates, Some(chunk));
             let grid = Arc::clone(&grid);
             let task = task_pool.spawn(async move {
-                let mesh = chunk.compute_mesh(mesh_builder_settings, grid);
-
-                (chunk, mesh)
+                grid.compute_mesh(coordinates)
             });
 
             let mut entity = commands.entity(entity);
@@ -255,13 +253,12 @@ fn spawn_chunks(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     config: Res<VoxelConfig>,
-    grid: Res<Arc<ChunkGrid>>,
     mut mesh_computation_tasks: Query<(Entity, &mut ComputeMesh, &GridCoordinates)>,
 ) {
     for (entity, mut mesh_computation_task, coordinates) in
         mesh_computation_tasks.iter_mut().take(20)
     {
-        if let Some((chunk, mesh)) =
+        if let Some(mesh) =
             future::block_on(future::poll_once(&mut mesh_computation_task.0))
         {
             let mut entity = commands.entity(entity);
@@ -272,8 +269,6 @@ fn spawn_chunks(
                 ..Default::default()
             });
             entity.remove::<ComputeMesh>();
-
-            grid.insert(*coordinates, Some(chunk));
         }
     }
 }

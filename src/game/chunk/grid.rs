@@ -3,22 +3,66 @@ use std::ops::{Add, Sub, Deref, DerefMut};
 use bevy::prelude::*;
 use dashmap::DashMap;
 
-use super::Chunk;
+use crate::vec3;
+
+use super::{Chunk, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
 
 #[derive(Default)]
-pub struct ChunkGrid(DashMap<GridCoordinates, Option<Chunk>>);
+pub struct ChunkGrid {
+    chunks: DashMap<GridCoordinates, Option<Chunk>>,
+    mesh_builder_settings: MeshBuilderSettings,
+}
+
+impl ChunkGrid {
+    pub fn compute_mesh(&self, coordinates: GridCoordinates) -> Mesh {
+        let mut builder = MeshBuilder::new(self.mesh_builder_settings);
+        let chunk_ref = self.get(&coordinates).expect(format!("Expected chunk {:?} to be in ChunkGrid", coordinates).as_str());
+        let chunk = chunk_ref.as_ref().expect("Expected chunk to contain data");
+
+        for x in 0..Chunk::WIDTH {
+            for y in 0..Chunk::HEIGHT {
+                for z in 0..Chunk::WIDTH {
+                    builder.move_to(vec3!(x, y, z));
+
+                    if chunk.is_solid([x, y, z]) {
+                        if y == Chunk::HEIGHT-1 || chunk.is_air([x, y+1, z]) {
+                            builder.face_top();
+                        }
+                        if y == Chunk::LOWER_BOUND || chunk.is_air([x, y-1, z]) {
+                            builder.face_bottom();
+                        }
+                        if x == Chunk::UPPER_BOUND || chunk.is_air([x+1, y, z]) {
+                            builder.face_left();
+                        }
+                        if x == Chunk::LOWER_BOUND || chunk.is_air([x-1, y, z]) {
+                            builder.face_right();
+                        }
+                        if z == Chunk::UPPER_BOUND || chunk.is_air([x, y, z+1]) {
+                            builder.face_back();
+                        }
+                        if z == Chunk::LOWER_BOUND || chunk.is_air([x, y, z-1]) {
+                            builder.face_front();
+                        }
+                    }
+                }
+            }
+        }
+        
+        builder.build()
+    }
+}
 
 impl Deref for ChunkGrid {
     type Target = DashMap<GridCoordinates, Option<Chunk>>;
     
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.chunks
     }
 }
 
 impl DerefMut for ChunkGrid {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.chunks
     }
 }
 
