@@ -10,14 +10,11 @@ use super::{Chunk, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
 #[derive(Default)]
 pub struct ChunkGrid {
     chunks: DashMap<GridCoordinates, Option<Chunk>>,
-    mesh_builder_settings: MeshBuilderSettings,
 }
 
 impl ChunkGrid {
-    pub fn compute_mesh(&self, coordinates: GridCoordinates) -> Mesh {
-        let mut builder = MeshBuilder::new(self.mesh_builder_settings);
-        let chunk_ref = self.get(&coordinates).expect(format!("Expected chunk {:?} to be in ChunkGrid", coordinates).as_str());
-        let chunk = chunk_ref.as_ref().expect("Expected chunk to contain data");
+    pub fn compute_mesh(&self, coordinates: GridCoordinates, chunk: Chunk, mesh_builder_settings: MeshBuilderSettings) -> Mesh {
+        let mut builder = MeshBuilder::new(mesh_builder_settings);
 
         for x in 0..Chunk::WIDTH {
             for y in 0..Chunk::HEIGHT {
@@ -47,6 +44,8 @@ impl ChunkGrid {
                 }
             }
         }
+
+        self.insert(coordinates, Some(chunk));
         
         builder.build()
     }

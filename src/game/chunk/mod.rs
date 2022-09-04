@@ -230,16 +230,17 @@ fn compute_meshes(
     mut commands: Commands,
     mut generation_tasks: Query<(Entity, &mut GenerateChunk, &GridCoordinates)>,
     grid: Res<Arc<ChunkGrid>>,
+    settings: Res<Settings>,
 ) {
     let task_pool = AsyncComputeTaskPool::get();
+    let mesh_builder_settings = settings.mesh_builder;
 
     for (entity, mut generation_task, coordinates) in &mut generation_tasks {
         if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
             let coordinates = *coordinates;
-            grid.insert(coordinates, Some(chunk));
             let grid = Arc::clone(&grid);
             let task = task_pool.spawn(async move {
-                grid.compute_mesh(coordinates)
+                grid.compute_mesh(coordinates, chunk, mesh_builder_settings)
             });
 
             let mut entity = commands.entity(entity);

@@ -50,7 +50,6 @@ fn configure_egui() {}
 
 fn show_menu(
     mut context: ResMut<EguiContext>,
-    mut settings: ResMut<Settings>,
     mut state: ResMut<State<AppState>>,
     mut exit: EventWriter<AppExit>,
 ) {
@@ -61,43 +60,6 @@ fn show_menu(
         .resizable(false)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .show(context.ctx_mut(), move |ui| {
-            ui.add(
-                egui::Slider::new(&mut settings.render_distance, 0..=30)
-                    .show_value(true)
-                    .text("Render Distance"),
-            );
-
-            ui.heading("Noise");
-
-            ui.horizontal(|ui| {
-                ui.label("Octaves:");
-                ui.add(egui::DragValue::new(&mut settings.noise.octaves));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Amplitude:");
-                ui.add(egui::DragValue::new(&mut settings.noise.amplitude));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Lacunarity:");
-                ui.add(egui::DragValue::new(&mut settings.noise.lacunarity));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Gain:");
-                ui.add(egui::DragValue::new(&mut settings.noise.gain));
-            });
-
-            ui.horizontal(|ui| {
-                ui.label("Scale:");
-                ui.add(egui::DragValue::new(&mut settings.noise.scale).fixed_decimals(3));
-            });
-
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut settings.update_chunks, "Update Chunks:");
-            });
-
             if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Resume")).clicked() {
                 state.set(AppState::InGame).unwrap();
             }else if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Exit")).clicked() {

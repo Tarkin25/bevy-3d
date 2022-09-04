@@ -2,10 +2,11 @@ use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
+use bevy_inspector_egui::Inspectable;
 
 use crate::vec3;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Inspectable)]
 pub struct MeshBuilderSettings {
     pub voxel_size: f32,
 }

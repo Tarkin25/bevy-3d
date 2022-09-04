@@ -1,14 +1,28 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::{InspectorPlugin, Inspectable, plugin::InspectorWindows};
 
-use crate::game::chunk::mesh_builder::MeshBuilderSettings;
+use crate::{game::chunk::mesh_builder::MeshBuilderSettings, AppState};
 
 pub struct SettingsPlugin;
 
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Settings::default())
+            .add_plugin(InspectorPlugin::<Settings>::new())
+            .add_system_set(SystemSet::on_enter(AppState::InGame).with_system(hide_menu))
+            .add_system_set(SystemSet::on_enter(AppState::Menu).with_system(show_menu))
             .add_system(update_render_distance);
     }
+}
+
+fn show_menu(mut inspector_windows: ResMut<InspectorWindows>) {
+    let mut settings_inspector = inspector_windows.window_data_mut::<Settings>();
+    settings_inspector.visible = true;
+}
+
+fn hide_menu(mut inspector_windows: ResMut<InspectorWindows>) {
+    let mut settings_inspector = inspector_windows.window_data_mut::<Settings>();
+    settings_inspector.visible = false;
 }
 
 fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Settings>) {
@@ -24,12 +38,14 @@ fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Setti
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Inspectable)]
 pub struct Settings {
+    #[inspectable(min = 0, max = 32)]
     pub render_distance: isize,
     pub update_chunks: bool,
     pub mesh_builder: MeshBuilderSettings,
     pub noise: NoiseSettings,
+    #[inspectable(ignore)]
     prev_noise: NoiseSettings,
 }
 
@@ -44,7 +60,7 @@ impl Settings {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Inspectable)]
 pub struct NoiseSettings {
     pub octaves: i32,
     pub lacunarity: f32,
@@ -70,7 +86,7 @@ impl Default for NoiseSettings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            render_distance: 0,
+            render_distance: 16,
             update_chunks: true,
             mesh_builder: Default::default(),
             noise: Default::default(),
