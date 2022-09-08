@@ -6,6 +6,8 @@ use bevy_inspector_egui::Inspectable;
 
 use crate::vec3;
 
+use super::{BlockType, UvBounds};
+
 #[derive(Debug, Clone, Copy, Inspectable)]
 pub struct MeshBuilderSettings {
     pub voxel_size: f32,
@@ -23,7 +25,9 @@ pub struct MeshBuilder {
     indices: Vec<u32>,
     vertex_count: u32,
     normals: Vec<Vec3>,
+    uvs: Vec<[f32; 2]>,
     position: Vec3,
+    block_type: Option<BlockType>,
     settings: MeshBuilderSettings,
 }
 
@@ -35,7 +39,9 @@ impl MeshBuilder {
             indices: Default::default(),
             vertex_count: Default::default(),
             normals: Default::default(),
+            uvs: Default::default(),
             position: Default::default(),
+            block_type: Default::default(),
         }
     }
     
@@ -52,6 +58,12 @@ impl MeshBuilder {
             .collect();
 
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+        if !self.uvs.is_empty() {
+            assert_eq!(self.uvs.len(), vertices.len());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
+        }
+        
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.set_indices(Some(Indices::U32(self.indices)));
@@ -63,11 +75,24 @@ impl MeshBuilder {
         self.position = position;
     }
 
+    pub fn set_block_type(&mut self, block_type: Option<BlockType>) {
+        self.block_type = block_type;
+    }
+
     fn add_face(&mut self, unit_vertices: [Vec3; 4], normal: Vec3) {
         self.vertices.extend(unit_vertices.map(|v| v * self.settings.voxel_size + self.position));
         self.indices.extend([0, 1, 2, 2, 3, 0].map(|i| i + self.vertex_count));
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
+
+        if let Some(UvBounds { lower, upper }) = self.block_type.map(|block_type| block_type.uv_bounds()) {
+            self.uvs.extend([
+                [upper.x, upper.y],
+                [upper.x, lower.y],
+                [lower.x, lower.y],
+                [lower.x, upper.y],
+            ]);
+        }
     }
 
     pub fn face_top(&mut self) {

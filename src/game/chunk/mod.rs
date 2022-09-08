@@ -53,9 +53,46 @@ fn insert_generator(mut commands: Commands, settings: Res<Settings>) {
     commands.insert_resource(generator);
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum BlockType {
+    Grass,
+    Stone,
+}
+
+impl BlockType {
+    pub fn uv_bounds(self) -> UvBounds {
+        const TEXTURE_SIZE: f32 = 16.0;
+        
+        use BlockType::*;
+
+        match self {
+            Grass => UvBounds::from_index(2, 0),
+            Stone => UvBounds::from_index(0, 0),
+        }
+    }
+}
+
+pub struct UvBounds {
+    pub lower: Vec2,
+    pub upper: Vec2,
+}
+
+impl UvBounds {
+    pub fn from_index(x: u32, y: u32) -> Self {
+        const ATLAS_WIDTH: f32 = 512.0;
+        const ATLAS_HEIGHT: f32 = 256.0;
+        const TEXTURE_SIZE: f32 = 16.0;
+
+        let lower = Vec2::new(x as f32 * TEXTURE_SIZE / ATLAS_WIDTH, y as f32 * TEXTURE_SIZE / ATLAS_HEIGHT);
+        let upper = Vec2::new((x+1) as f32 * TEXTURE_SIZE / ATLAS_WIDTH, (y+1) as f32 * TEXTURE_SIZE / ATLAS_HEIGHT);
+
+        Self { lower, upper }
+    }
+}
+
 #[derive(Component)]
 pub struct Chunk {
-    data: Vec<Vec<Vec<bool>>>,
+    data: Vec<Vec<Vec<Option<BlockType>>>>,
     coordinates: GridCoordinates,
 }
 
@@ -68,7 +105,7 @@ impl Chunk {
     pub fn new(coordinates: GridCoordinates) -> Self {
         Self {
             data: vec![
-                vec![vec![false; Chunk::WIDTH as usize]; Chunk::HEIGHT as usize];
+                vec![vec![None; Chunk::WIDTH as usize]; Chunk::HEIGHT as usize];
                 Chunk::WIDTH as usize
             ],
             coordinates,
@@ -76,8 +113,7 @@ impl Chunk {
     }
 
     pub fn is_solid(&self, position: [isize; 3]) -> bool {
-        let [x, y, z] = position.map(|n| n.to_usize());
-        self.data[x][y][z]
+        self.get(position).is_some()
     }
 
     pub fn is_air(&self, [x, y, z]: [isize; 3]) -> bool {
@@ -99,8 +135,13 @@ impl Chunk {
             .unwrap_or(true)
     }
 
-    pub fn set(&mut self, x: usize, y: usize, z: usize, value: bool) {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, value: Option<BlockType>) {
         self.data[x][y][z] = value;
+    }
+
+    pub fn get(&self, position: [isize; 3]) -> Option<BlockType> {
+        let [x, y, z] = position.map(|n| n.to_usize());
+        self.data[x][y][z]
     }
 
     /// http://ilkinulas.github.io/development/unity/2016/04/30/cube-mesh-in-unity3d.html
@@ -111,6 +152,7 @@ impl Chunk {
             for y in 0..Chunk::HEIGHT {
                 for z in 0..Chunk::WIDTH {
                     builder.move_to(vec3!(x, y, z));
+                    builder.set_block_type(self.get([x, y, z]));
 
                     if self.is_solid([x, y, z]) {
                         if y == Chunk::HEIGHT-1 || self.is_air([x, y + 1, z]) {
@@ -171,7 +213,7 @@ impl Chunk {
             );
         }
 
-        self.data[x.to_usize()][y.to_usize()][z.to_usize()]
+        self.data[x.to_usize()][y.to_usize()][z.to_usize()].is_some()
     }
 
     fn adjacent_is_air(&self, [x, y, z]: [isize; 3], grid: &Arc<ChunkGrid>) -> bool {

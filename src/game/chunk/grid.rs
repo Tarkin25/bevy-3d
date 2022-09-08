@@ -20,6 +20,7 @@ impl ChunkGrid {
             for y in 0..Chunk::HEIGHT {
                 for z in 0..Chunk::WIDTH {
                     builder.move_to(vec3!(x, y, z));
+                    builder.set_block_type(chunk.get([x, y, z]));
 
                     if chunk.is_solid([x, y, z]) {
                         if y == Chunk::HEIGHT-1 || chunk.is_air([x, y+1, z]) {

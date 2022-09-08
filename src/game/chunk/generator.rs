@@ -4,7 +4,7 @@ use tap::Pipe;
 
 use crate::{settings::NoiseSettings, utils::ToUsize};
 
-use super::Chunk;
+use super::{Chunk, BlockType};
 
 pub trait ChunkGenerator: Send + Sync {
     fn generate(&self, position: [isize; 3]) -> Chunk;
@@ -45,7 +45,7 @@ impl ChunkGenerator for PerlinNoiseGenerator {
                 let y = y.abs().round() as usize;
 
                 for y in 0..y {
-                    chunk.set(x, y, z, true);
+                    chunk.set(x, y, z, Some(BlockType::Grass));
                 }
             }
         }
@@ -102,13 +102,10 @@ impl ChunkGenerator for ContinentalGenerator {
                 .pipe(|s| s.round() as isize);
                 let height = (self.base_height as isize + splined_height) as usize;
 
-                if height < 256 {
-                    for y in 0..height {
-                        chunk.set(x, y, z, true);
-                    }
-                } else {
-                    bevy::log::error!("invalid height = {height}, continentality = {continentality}");
+                for y in 0..height-1 {
+                    chunk.set(x, y, z, Some(BlockType::Stone));
                 }
+                chunk.set(x, height-1, z, Some(BlockType::Grass));
             }
         }
 
