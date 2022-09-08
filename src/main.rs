@@ -4,12 +4,12 @@ use bevy::{prelude::*, window::WindowMode};
 use bevy_egui::EguiPlugin;
 use game::{
     camera_controller::CameraControllerPlugin,
-    chunk::ChunkPlugin,
     debug_info::DebugInfoPlugin,
 };
 use menu::MenuPlugin;
 use my_material::MyMaterialPlugin;
 use settings::SettingsPlugin;
+use spatial_hash_grid::SpatialHashGridPlugin;
 
 mod button_test;
 mod game;
@@ -17,6 +17,7 @@ mod menu;
 mod my_material;
 pub mod settings;
 pub mod utils;
+mod spatial_hash_grid;
 
 #[macro_export]
 macro_rules! vec3 {
@@ -40,12 +41,13 @@ fn main() {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
                 .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
         })
-        .add_plugin(ChunkPlugin)
+        //.add_plugin(ChunkPlugin)
         .add_plugin(SettingsPlugin)
         .add_plugin(MenuPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
         .add_state(AppState::InGame)
+        .add_plugin(SpatialHashGridPlugin)
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_config)
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
