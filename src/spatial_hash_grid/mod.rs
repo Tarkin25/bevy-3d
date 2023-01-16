@@ -3,7 +3,7 @@ use bevy_inspector_egui::WorldInspectorPlugin;
 
 use crate::game::camera_controller::CameraController;
 
-use self::grid::SpatialHashGrid;
+pub use self::grid::SpatialHashGrid;
 
 mod grid;
 
@@ -27,9 +27,11 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {    
     let mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let size = 30;
+    let size_half = size / 2;
 
-    for x in -5..5 {
-        for z in -5..5 {
+    for x in -size_half..size_half {
+        for z in -size_half..size_half {
             commands
                 .spawn_bundle(PbrBundle {
                     mesh: mesh.clone(),
@@ -65,7 +67,7 @@ fn mark_near_player(
 ) {
     let transform = player.single();
 
-    let nearby_entities = grid.get_nearby(transform.translation, 5);
+    let nearby_entities = grid.get_nearby(transform.translation, 5.0);
 
     for entity in &nearby_entities {
         commands.entity(*entity).insert(NearPlayer);

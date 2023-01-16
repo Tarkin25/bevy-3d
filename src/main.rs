@@ -1,30 +1,16 @@
 #![allow(dead_code)]
 
 use bevy::{prelude::*, window::WindowMode};
+use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
-use game::{
+use bevy_3d::game::{
     camera_controller::CameraControllerPlugin,
     debug_info::DebugInfoPlugin,
 };
-use menu::MenuPlugin;
-use my_material::MyMaterialPlugin;
-use settings::SettingsPlugin;
-use spatial_hash_grid::SpatialHashGridPlugin;
-
-mod button_test;
-mod game;
-mod menu;
-mod my_material;
-pub mod settings;
-pub mod utils;
-mod spatial_hash_grid;
-
-#[macro_export]
-macro_rules! vec3 {
-    ($x: expr, $y: expr, $z: expr) => {
-        Vec3::new($x as f32, $y as f32, $z as f32)
-    };
-}
+use bevy_3d::menu::MenuPlugin;
+use bevy_3d::my_material::MyMaterialPlugin;
+use bevy_3d::settings::SettingsPlugin;
+use bevy_3d::spatial_hash_grid::SpatialHashGridPlugin;
 
 fn main() {
     App::new()
@@ -53,16 +39,6 @@ fn main() {
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
         .run();
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AppState {
-    Menu,
-    InGame,
-}
-
-pub struct VoxelConfig {
-    material: Handle<StandardMaterial>,
 }
 
 fn textured_cube(
