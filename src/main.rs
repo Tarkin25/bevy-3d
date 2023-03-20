@@ -1,11 +1,14 @@
 #![allow(dead_code)]
 
+use bevy::asset::AssetServerSettings;
 use bevy::{prelude::*, window::WindowMode};
 use bevy_3d::game::chunk::ChunkPlugin;
 use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
+use bevy_3d::texture_atlas::TextureAtlasMaterial;
+use bevy_3d::texture_atlas::TextureAtlasPlugin;
 use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
@@ -19,12 +22,17 @@ fn main() {
             mode: WindowMode::Fullscreen,
             ..Default::default()
         })
+        .insert_resource(AssetServerSettings {
+            watch_for_changes: true,
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
                 .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
         })
+        .add_plugin(TextureAtlasPlugin)
         .add_plugin(ChunkPlugin)
         .add_plugin(SettingsPlugin)
         .add_plugin(MenuPlugin)
@@ -36,20 +44,7 @@ fn main() {
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
-        .add_startup_system(insert_sprite)
         .run();
-}
-
-fn insert_sprite(mut commands: Commands) {
-    commands.spawn_bundle(SpriteBundle {
-        sprite: Sprite {
-            color: Color::PINK,
-            custom_size: Some(Vec2::new(20.0, 20.0)),
-            ..Default::default()
-        },
-        transform: Transform::from_xyz(0.0, 100.0, 10.0),
-        ..Default::default()
-    });
 }
 
 fn textured_cube(
@@ -59,7 +54,7 @@ fn textured_cube(
 ) {
     let mesh = Mesh::from(shape::Cube { size: 1.0 });
 
-    commands.spawn_bundle(PbrBundle {
+    commands.spawn_bundle(MaterialMeshBundle {
         mesh: meshes.add(mesh),
         material: config.material.clone(),
         transform: Transform::from_xyz(2.0, 99.0, 0.0),
@@ -69,13 +64,14 @@ fn textured_cube(
 
 fn setup_config(
     mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<TextureAtlasMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(asset_server.load("textures/minecraft-texture-atlas.png")),
-        alpha_mode: AlphaMode::Opaque,
-        ..Default::default()
+    let material = materials.add(TextureAtlasMaterial {
+        size: Vec2::new(66.0, 66.0),
+        resolution: 32.0,
+        gap: 1.0,
+        texture_handle: asset_server.load("textures/texture-atlas.png"),
     });
 
     commands.insert_resource(VoxelConfig { material });

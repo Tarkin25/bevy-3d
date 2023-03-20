@@ -60,34 +60,25 @@ pub enum BlockType {
 }
 
 impl BlockType {
-    pub fn uv_bounds(self) -> UvBounds {
-        use BlockType::*;
-
-        match self {
-            Grass => UvBounds::from_index(2, 0),
-            Stone => UvBounds::from_index(0, 0),
-        }
-    }
-
     pub fn texture_uvs(self) -> TextureUvs {
         use BlockType::*;
 
         match self {
             Grass => TextureUvs {
-                pos_x: UvBounds::from_index(3, 0),
-                neg_x: UvBounds::from_index(3, 0),
-                pos_y: UvBounds::from_index(2, 0),
-                neg_y: UvBounds::from_index(18, 1),
-                pos_z: UvBounds::from_index(3, 0),
-                neg_z: UvBounds::from_index(3, 0),
+                pos_x: UvBounds::from_index(1, 0),
+                neg_x: UvBounds::from_index(1, 0),
+                pos_y: UvBounds::from_index(0, 0),
+                neg_y: UvBounds::from_index(0, 1),
+                pos_z: UvBounds::from_index(1, 0),
+                neg_z: UvBounds::from_index(1, 0),
             },
             Stone => TextureUvs {
-                pos_x: UvBounds::from_index(19, 0),
-                neg_x: UvBounds::from_index(19, 0),
-                pos_y: UvBounds::from_index(19, 0),
-                neg_y: UvBounds::from_index(19, 0),
-                pos_z: UvBounds::from_index(19, 0),
-                neg_z: UvBounds::from_index(19, 0),
+                pos_x: UvBounds::from_index(1, 0),
+                neg_x: UvBounds::from_index(1, 0),
+                pos_y: UvBounds::from_index(0, 0),
+                neg_y: UvBounds::from_index(0, 1),
+                pos_z: UvBounds::from_index(1, 0),
+                neg_z: UvBounds::from_index(1, 0),
             },
         }
     }
@@ -131,20 +122,11 @@ pub struct UvBounds {
 
 impl UvBounds {
     pub fn from_index(x: u32, y: u32) -> Self {
-        const ATLAS_WIDTH: f32 = 512.0;
-        const ATLAS_HEIGHT: f32 = 256.0;
-        const TEXTURE_SIZE: f32 = 16.0;
-
-        let lower = Vec2::new(
-            x as f32 * TEXTURE_SIZE / ATLAS_WIDTH,
-            y as f32 * TEXTURE_SIZE / ATLAS_HEIGHT,
-        );
-        let upper = Vec2::new(
-            (x + 1) as f32 * TEXTURE_SIZE / ATLAS_WIDTH,
-            (y + 1) as f32 * TEXTURE_SIZE / ATLAS_HEIGHT,
-        );
-
-        Self { lower, upper }
+        let index = UVec2::new(x, y).as_vec2();
+        Self {
+            lower: index,
+            upper: index + Vec2::ONE,
+        }
     }
 }
 
@@ -360,7 +342,7 @@ fn spawn_chunks(
     {
         if let Some(mesh) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
             let mut entity = commands.entity(entity);
-            entity.insert_bundle(PbrBundle {
+            entity.insert_bundle(MaterialMeshBundle {
                 mesh: meshes.add(mesh),
                 material: config.material.clone(),
                 transform: Transform::from_translation((*coordinates).into()),
