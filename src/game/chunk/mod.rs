@@ -73,12 +73,12 @@ impl BlockType {
                 neg_z: UvBounds::from_index(1, 0),
             },
             Stone => TextureUvs {
-                pos_x: UvBounds::from_index(1, 0),
-                neg_x: UvBounds::from_index(1, 0),
-                pos_y: UvBounds::from_index(0, 0),
-                neg_y: UvBounds::from_index(0, 1),
-                pos_z: UvBounds::from_index(1, 0),
-                neg_z: UvBounds::from_index(1, 0),
+                pos_x: UvBounds::from_index(1, 1),
+                neg_x: UvBounds::from_index(1, 1),
+                pos_y: UvBounds::from_index(1, 1),
+                neg_y: UvBounds::from_index(1, 1),
+                pos_z: UvBounds::from_index(1, 1),
+                neg_z: UvBounds::from_index(1, 1),
             },
         }
     }
