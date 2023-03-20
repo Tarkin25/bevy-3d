@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::{InspectorPlugin, Inspectable, plugin::InspectorWindows};
+use bevy_inspector_egui::{plugin::InspectorWindows, Inspectable, InspectorPlugin};
 
 use crate::{game::chunk::mesh_builder::MeshBuilderSettings, AppState};
 

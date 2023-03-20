@@ -1,10 +1,10 @@
 use bracket_noise::prelude::*;
-use splines::{Spline, Key, Interpolation};
+use splines::{Interpolation, Key, Spline};
 use tap::Pipe;
 
 use crate::{settings::NoiseSettings, utils::ToUsize};
 
-use super::{Chunk, BlockType};
+use super::{BlockType, Chunk};
 
 pub trait ChunkGenerator: Send + Sync {
     fn generate(&self, position: [isize; 3]) -> Chunk;
@@ -28,7 +28,11 @@ impl Default for PerlinNoiseGenerator {
         noise.set_fractal_gain(0.5);
         noise.set_frequency(2.0);
 
-        Self { noise, amplitude: 100.0, scale: 0.01 }
+        Self {
+            noise,
+            amplitude: 100.0,
+            scale: 0.01,
+        }
     }
 }
 
@@ -82,7 +86,11 @@ impl ContinentalGenerator {
             continental_noise,
             noise_scale: 0.01,
             base_height,
-            spline: Spline::from_iter(spline.into_iter().map(|(key, value)| Key::new(key, value, Interpolation::Linear)))
+            spline: Spline::from_iter(
+                spline
+                    .into_iter()
+                    .map(|(key, value)| Key::new(key, value, Interpolation::Linear)),
+            ),
         }
     }
 }
@@ -96,16 +104,17 @@ impl ChunkGenerator for ContinentalGenerator {
                 let x_coord = (x as isize + position[0]) as f32 * self.noise_scale;
                 let z_coord = (z as isize + position[2]) as f32 * self.noise_scale;
                 let continentality = self.continental_noise.get_noise(x_coord, z_coord);
-                let splined_height = self.spline
-                .sample(continentality)
-                .unwrap()
-                .pipe(|s| s.round() as isize);
+                let splined_height = self
+                    .spline
+                    .sample(continentality)
+                    .unwrap()
+                    .pipe(|s| s.round() as isize);
                 let height = (self.base_height as isize + splined_height) as usize;
 
-                for y in 0..height-1 {
+                for y in 0..height - 1 {
                     chunk.set(x, y, z, Some(BlockType::Stone));
                 }
-                chunk.set(x, height-1, z, Some(BlockType::Grass));
+                chunk.set(x, height - 1, z, Some(BlockType::Grass));
             }
         }
 
@@ -114,7 +123,8 @@ impl ChunkGenerator for ContinentalGenerator {
 
     fn apply_noise_settings(&mut self, settings: NoiseSettings) {
         self.continental_noise.set_fractal_octaves(settings.octaves);
-        self.continental_noise.set_fractal_lacunarity(settings.lacunarity);
+        self.continental_noise
+            .set_fractal_lacunarity(settings.lacunarity);
         self.continental_noise.set_fractal_gain(settings.gain);
         self.continental_noise.set_frequency(settings.frequency);
         self.noise_scale = settings.scale;
@@ -127,7 +137,8 @@ mod tests {
 
     #[test]
     fn spline_works() {
-        let spline = Spline::from_iter([Key::new(0.0_f32, 0.0_f32, Interpolation::Linear)].into_iter());
+        let spline =
+            Spline::from_iter([Key::new(0.0_f32, 0.0_f32, Interpolation::Linear)].into_iter());
         assert_eq!(spline.sample(0.0), Some(0.0));
     }
 }

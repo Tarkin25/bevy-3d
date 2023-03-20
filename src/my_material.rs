@@ -11,8 +11,13 @@ pub struct MyMaterialPlugin;
 impl Plugin for MyMaterialPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(MaterialPlugin::<MyMaterial>::default())
-        .add_startup_system(setup)
-        .add_system_set(SystemSet::on_update(AppState::InGame).with_system(move_movables).with_system(update_material_time).with_system(update_transparency));
+            .add_startup_system(setup)
+            .add_system_set(
+                SystemSet::on_update(AppState::InGame)
+                    .with_system(move_movables)
+                    .with_system(update_material_time)
+                    .with_system(update_transparency),
+            );
     }
 }
 
@@ -21,16 +26,18 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<MyMaterial>>,
 ) {
-    commands.spawn_bundle(MaterialMeshBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        transform: Transform::from_xyz(0.0, 99.0, 0.0),
-        material: materials.add(MyMaterial {
-            color: Color::BLUE,
-            time: 0.0,
-            opacity: 1.0,
-        }),
-        ..Default::default()
-    }).insert(Movable);
+    commands
+        .spawn_bundle(MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            transform: Transform::from_xyz(0.0, 99.0, 0.0),
+            material: materials.add(MyMaterial {
+                color: Color::BLUE,
+                time: 0.0,
+                opacity: 1.0,
+            }),
+            ..Default::default()
+        })
+        .insert(Movable);
 }
 
 #[derive(AsBindGroup, TypeUuid, Clone)]
@@ -57,7 +64,11 @@ impl Material for MyMaterial {
 #[derive(Component)]
 struct Movable;
 
-fn move_movables(input: Res<Input<KeyCode>>, mut query: Query<&mut Transform, With<Movable>>, time: Res<Time>) {
+fn move_movables(
+    input: Res<Input<KeyCode>>,
+    mut query: Query<&mut Transform, With<Movable>>,
+    time: Res<Time>,
+) {
     let mut direction = Vec3::ZERO;
 
     if input.pressed(KeyCode::Up) {
@@ -86,7 +97,11 @@ fn update_material_time(mut materials: ResMut<Assets<MyMaterial>>, time: Res<Tim
     }
 }
 
-fn update_transparency(mut materials: ResMut<Assets<MyMaterial>>, input: Res<Input<KeyCode>>, mut transparent: Local<bool>) {
+fn update_transparency(
+    mut materials: ResMut<Assets<MyMaterial>>,
+    input: Res<Input<KeyCode>>,
+    mut transparent: Local<bool>,
+) {
     if input.just_pressed(KeyCode::T) {
         *transparent = !*transparent;
 

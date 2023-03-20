@@ -44,7 +44,7 @@ impl MeshBuilder {
             block_type: Default::default(),
         }
     }
-    
+
     pub fn build(self) -> Mesh {
         let vertices: Vec<_> = self
             .vertices
@@ -63,7 +63,7 @@ impl MeshBuilder {
             assert_eq!(self.uvs.len(), vertices.len());
             mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
         }
-        
+
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.set_indices(Some(Indices::U32(self.indices)));
@@ -80,12 +80,16 @@ impl MeshBuilder {
     }
 
     fn add_face(&mut self, unit_vertices: [Vec3; 4], normal: Vec3) {
-        self.vertices.extend(unit_vertices.map(|v| v * self.settings.voxel_size + self.position));
-        self.indices.extend([0, 1, 2, 2, 3, 0].map(|i| i + self.vertex_count));
+        self.vertices
+            .extend(unit_vertices.map(|v| v * self.settings.voxel_size + self.position));
+        self.indices
+            .extend([0, 1, 2, 2, 3, 0].map(|i| i + self.vertex_count));
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
 
-        if let Some(UvBounds { lower, upper }) = self.block_type.map(|block_type| block_type.uv_bounds()) {
+        if let Some(UvBounds { lower, upper }) =
+            self.block_type.map(|block_type| block_type.uv_bounds())
+        {
             self.uvs.extend([
                 [upper.x, upper.y],
                 [upper.x, lower.y],
@@ -96,56 +100,74 @@ impl MeshBuilder {
     }
 
     pub fn face_top(&mut self) {
-        self.add_face([
-            vec3!(0, 1, 0),
-            vec3!(0, 1, 1),
-            vec3!(1, 1, 1),
-            vec3!(1, 1, 0),
-        ], Vec3::Y);
+        self.add_face(
+            [
+                vec3!(0, 1, 0),
+                vec3!(0, 1, 1),
+                vec3!(1, 1, 1),
+                vec3!(1, 1, 0),
+            ],
+            Vec3::Y,
+        );
     }
 
     pub fn face_bottom(&mut self) {
-        self.add_face([
-            vec3!(0, 0, 0),
-            vec3!(1, 0, 0),
-            vec3!(1, 0, 1),
-            vec3!(0, 0, 1),
-        ], Vec3::NEG_Y);
+        self.add_face(
+            [
+                vec3!(0, 0, 0),
+                vec3!(1, 0, 0),
+                vec3!(1, 0, 1),
+                vec3!(0, 0, 1),
+            ],
+            Vec3::NEG_Y,
+        );
     }
 
     pub fn face_front(&mut self) {
-        self.add_face([
-            vec3!(0, 0, 0),
-            vec3!(0, 1, 0),
-            vec3!(1, 1, 0),
-            vec3!(1, 0, 0),
-        ], Vec3::NEG_Z);
+        self.add_face(
+            [
+                vec3!(0, 0, 0),
+                vec3!(0, 1, 0),
+                vec3!(1, 1, 0),
+                vec3!(1, 0, 0),
+            ],
+            Vec3::NEG_Z,
+        );
     }
 
     pub fn face_back(&mut self) {
-        self.add_face([
-            vec3!(0, 0, 1),
-            vec3!(1, 0, 1),
-            vec3!(1, 1, 1),
-            vec3!(0, 1, 1),
-        ], Vec3::Z);
+        self.add_face(
+            [
+                vec3!(0, 0, 1),
+                vec3!(1, 0, 1),
+                vec3!(1, 1, 1),
+                vec3!(0, 1, 1),
+            ],
+            Vec3::Z,
+        );
     }
 
     pub fn face_right(&mut self) {
-        self.add_face([
-            vec3!(0, 0, 0),
-            vec3!(0, 0, 1),
-            vec3!(0, 1, 1),
-            vec3!(0, 1, 0),
-        ], Vec3::NEG_X);
+        self.add_face(
+            [
+                vec3!(0, 0, 0),
+                vec3!(0, 0, 1),
+                vec3!(0, 1, 1),
+                vec3!(0, 1, 0),
+            ],
+            Vec3::NEG_X,
+        );
     }
 
     pub fn face_left(&mut self) {
-        self.add_face([
-            vec3!(1, 0, 0),
-            vec3!(1, 1, 0),
-            vec3!(1, 1, 1),
-            vec3!(1, 0, 1),
-        ], Vec3::X);
+        self.add_face(
+            [
+                vec3!(1, 0, 0),
+                vec3!(1, 1, 0),
+                vec3!(1, 1, 1),
+                vec3!(1, 0, 1),
+            ],
+            Vec3::X,
+        );
     }
 }

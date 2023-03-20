@@ -61,8 +61,6 @@ pub enum BlockType {
 
 impl BlockType {
     pub fn uv_bounds(self) -> UvBounds {
-        const TEXTURE_SIZE: f32 = 16.0;
-        
         use BlockType::*;
 
         match self {
@@ -83,8 +81,14 @@ impl UvBounds {
         const ATLAS_HEIGHT: f32 = 256.0;
         const TEXTURE_SIZE: f32 = 16.0;
 
-        let lower = Vec2::new(x as f32 * TEXTURE_SIZE / ATLAS_WIDTH, y as f32 * TEXTURE_SIZE / ATLAS_HEIGHT);
-        let upper = Vec2::new((x+1) as f32 * TEXTURE_SIZE / ATLAS_WIDTH, (y+1) as f32 * TEXTURE_SIZE / ATLAS_HEIGHT);
+        let lower = Vec2::new(
+            x as f32 * TEXTURE_SIZE / ATLAS_WIDTH,
+            y as f32 * TEXTURE_SIZE / ATLAS_HEIGHT,
+        );
+        let upper = Vec2::new(
+            (x + 1) as f32 * TEXTURE_SIZE / ATLAS_WIDTH,
+            (y + 1) as f32 * TEXTURE_SIZE / ATLAS_HEIGHT,
+        );
 
         Self { lower, upper }
     }
@@ -155,7 +159,7 @@ impl Chunk {
                     builder.set_block_type(self.get([x, y, z]));
 
                     if self.is_solid([x, y, z]) {
-                        if y == Chunk::HEIGHT-1 || self.is_air([x, y + 1, z]) {
+                        if y == Chunk::HEIGHT - 1 || self.is_air([x, y + 1, z]) {
                             builder.face_top();
                         }
                         if y == Chunk::LOWER_BOUND || self.is_air([x, y - 1, z]) {
@@ -281,9 +285,8 @@ fn compute_meshes(
         if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
             let coordinates = *coordinates;
             let grid = Arc::clone(&grid);
-            let task = task_pool.spawn(async move {
-                grid.compute_mesh(coordinates, chunk, mesh_builder_settings)
-            });
+            let task = task_pool
+                .spawn(async move { grid.compute_mesh(coordinates, chunk, mesh_builder_settings) });
 
             let mut entity = commands.entity(entity);
             entity.insert(ComputeMesh(task));
@@ -301,9 +304,7 @@ fn spawn_chunks(
     for (entity, mut mesh_computation_task, coordinates) in
         mesh_computation_tasks.iter_mut().take(20)
     {
-        if let Some(mesh) =
-            future::block_on(future::poll_once(&mut mesh_computation_task.0))
-        {
+        if let Some(mesh) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
             let mut entity = commands.entity(entity);
             entity.insert_bundle(PbrBundle {
                 mesh: meshes.add(mesh),

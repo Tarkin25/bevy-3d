@@ -1,11 +1,14 @@
-use std::ops::{Add, Sub, Deref, DerefMut};
+use std::ops::{Add, Deref, DerefMut, Sub};
 
 use bevy::prelude::*;
 use dashmap::DashMap;
 
 use crate::vec3;
 
-use super::{Chunk, mesh_builder::{MeshBuilderSettings, MeshBuilder}};
+use super::{
+    mesh_builder::{MeshBuilder, MeshBuilderSettings},
+    Chunk,
+};
 
 #[derive(Default)]
 pub struct ChunkGrid {
@@ -13,7 +16,12 @@ pub struct ChunkGrid {
 }
 
 impl ChunkGrid {
-    pub fn compute_mesh(&self, coordinates: GridCoordinates, chunk: Chunk, mesh_builder_settings: MeshBuilderSettings) -> Mesh {
+    pub fn compute_mesh(
+        &self,
+        coordinates: GridCoordinates,
+        chunk: Chunk,
+        mesh_builder_settings: MeshBuilderSettings,
+    ) -> Mesh {
         let mut builder = MeshBuilder::new(mesh_builder_settings);
 
         for x in 0..Chunk::WIDTH {
@@ -23,22 +31,22 @@ impl ChunkGrid {
                     builder.set_block_type(chunk.get([x, y, z]));
 
                     if chunk.is_solid([x, y, z]) {
-                        if y == Chunk::HEIGHT-1 || chunk.is_air([x, y+1, z]) {
+                        if y == Chunk::HEIGHT - 1 || chunk.is_air([x, y + 1, z]) {
                             builder.face_top();
                         }
-                        if y == Chunk::LOWER_BOUND || chunk.is_air([x, y-1, z]) {
+                        if y == Chunk::LOWER_BOUND || chunk.is_air([x, y - 1, z]) {
                             builder.face_bottom();
                         }
-                        if x == Chunk::UPPER_BOUND || chunk.is_air([x+1, y, z]) {
+                        if x == Chunk::UPPER_BOUND || chunk.is_air([x + 1, y, z]) {
                             builder.face_left();
                         }
-                        if x == Chunk::LOWER_BOUND || chunk.is_air([x-1, y, z]) {
+                        if x == Chunk::LOWER_BOUND || chunk.is_air([x - 1, y, z]) {
                             builder.face_right();
                         }
-                        if z == Chunk::UPPER_BOUND || chunk.is_air([x, y, z+1]) {
+                        if z == Chunk::UPPER_BOUND || chunk.is_air([x, y, z + 1]) {
                             builder.face_back();
                         }
-                        if z == Chunk::LOWER_BOUND || chunk.is_air([x, y, z-1]) {
+                        if z == Chunk::LOWER_BOUND || chunk.is_air([x, y, z - 1]) {
                             builder.face_front();
                         }
                     }
@@ -47,14 +55,14 @@ impl ChunkGrid {
         }
 
         self.insert(coordinates, Some(chunk));
-        
+
         builder.build()
     }
 }
 
 impl Deref for ChunkGrid {
     type Target = DashMap<GridCoordinates, Option<Chunk>>;
-    
+
     fn deref(&self) -> &Self::Target {
         &self.chunks
     }

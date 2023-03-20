@@ -60,9 +60,15 @@ fn show_menu(
         .resizable(false)
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .show(context.ctx_mut(), move |ui| {
-            if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Resume")).clicked() {
+            if ui
+                .add_sized([ui.available_width(), 0.0], egui::Button::new("Resume"))
+                .clicked()
+            {
                 state.set(AppState::InGame).unwrap();
-            }else if ui.add_sized([ui.available_width(), 0.0], egui::Button::new("Exit")).clicked() {
+            } else if ui
+                .add_sized([ui.available_width(), 0.0], egui::Button::new("Exit"))
+                .clicked()
+            {
                 exit.send(AppExit);
             }
         });
@@ -79,7 +85,10 @@ fn apply_noise_settings(
     grid: Res<Arc<ChunkGrid>>,
 ) {
     if settings.detect_changes() {
-        generator.write().unwrap().apply_noise_settings(settings.noise);
+        generator
+            .write()
+            .unwrap()
+            .apply_noise_settings(settings.noise);
         for (entity, coordinates) in chunks.iter() {
             grid.remove(coordinates);
             commands.entity(entity).insert(DespawnChunk);

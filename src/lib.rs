@@ -3,7 +3,6 @@ pub mod menu;
 pub mod my_material;
 pub mod settings;
 pub mod utils;
-pub mod spatial_hash_grid;
 
 use bevy::prelude::*;
 

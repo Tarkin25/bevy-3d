@@ -1,16 +1,13 @@
 #![allow(dead_code)]
 
 use bevy::{prelude::*, window::WindowMode};
-use bevy_3d::{AppState, VoxelConfig};
-use bevy_egui::EguiPlugin;
-use bevy_3d::game::{
-    camera_controller::CameraControllerPlugin,
-    debug_info::DebugInfoPlugin,
-};
+use bevy_3d::game::chunk::ChunkPlugin;
+use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
-use bevy_3d::spatial_hash_grid::SpatialHashGridPlugin;
+use bevy_3d::{AppState, VoxelConfig};
+use bevy_egui::EguiPlugin;
 
 fn main() {
     App::new()
@@ -27,13 +24,12 @@ fn main() {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
                 .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
         })
-        //.add_plugin(ChunkPlugin)
+        .add_plugin(ChunkPlugin)
         .add_plugin(SettingsPlugin)
         .add_plugin(MenuPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
         .add_state(AppState::InGame)
-        .add_plugin(SpatialHashGridPlugin)
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_config)
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
