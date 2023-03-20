@@ -68,8 +68,62 @@ impl BlockType {
             Stone => UvBounds::from_index(0, 0),
         }
     }
+
+    pub fn texture_uvs(self) -> TextureUvs {
+        use BlockType::*;
+
+        match self {
+            Grass => TextureUvs {
+                pos_x: UvBounds::from_index(3, 0),
+                neg_x: UvBounds::from_index(3, 0),
+                pos_y: UvBounds::from_index(2, 0),
+                neg_y: UvBounds::from_index(18, 1),
+                pos_z: UvBounds::from_index(3, 0),
+                neg_z: UvBounds::from_index(3, 0),
+            },
+            Stone => TextureUvs {
+                pos_x: UvBounds::from_index(19, 0),
+                neg_x: UvBounds::from_index(19, 0),
+                pos_y: UvBounds::from_index(19, 0),
+                neg_y: UvBounds::from_index(19, 0),
+                pos_z: UvBounds::from_index(19, 0),
+                neg_z: UvBounds::from_index(19, 0),
+            },
+        }
+    }
 }
 
+#[derive(Debug)]
+pub struct TextureUvs {
+    pub pos_x: UvBounds,
+    pub neg_x: UvBounds,
+    pub pos_y: UvBounds,
+    pub neg_y: UvBounds,
+    pub pos_z: UvBounds,
+    pub neg_z: UvBounds,
+}
+
+impl TextureUvs {
+    pub fn uv_by_normal(self, normal: Vec3) -> UvBounds {
+        if normal == Vec3::X {
+            self.pos_x
+        } else if normal == Vec3::NEG_X {
+            self.neg_x
+        } else if normal == Vec3::Y {
+            self.pos_y
+        } else if normal == Vec3::NEG_Y {
+            self.neg_y
+        } else if normal == Vec3::Z {
+            self.pos_z
+        } else if normal == Vec3::NEG_Z {
+            self.neg_z
+        } else {
+            panic!("Invalid normal provided")
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct UvBounds {
     pub lower: Vec2,
     pub upper: Vec2,

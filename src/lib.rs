@@ -3,6 +3,7 @@ pub mod menu;
 pub mod my_material;
 pub mod settings;
 pub mod utils;
+pub mod wireframe_controller;
 
 use bevy::prelude::*;
 

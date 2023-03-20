@@ -79,16 +79,17 @@ impl MeshBuilder {
         self.block_type = block_type;
     }
 
-    fn add_face(&mut self, unit_vertices: [Vec3; 4], normal: Vec3) {
+    fn add_face(&mut self, unit_vertices: [Vec3; 4], unit_indices: [u32; 6], normal: Vec3) {
         self.vertices
             .extend(unit_vertices.map(|v| v * self.settings.voxel_size + self.position));
         self.indices
-            .extend([0, 1, 2, 2, 3, 0].map(|i| i + self.vertex_count));
+            .extend(unit_indices.map(|i| i + self.vertex_count));
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
 
-        if let Some(UvBounds { lower, upper }) =
-            self.block_type.map(|block_type| block_type.uv_bounds())
+        if let Some(UvBounds { lower, upper }) = self
+            .block_type
+            .map(|block_type| block_type.texture_uvs().uv_by_normal(normal))
         {
             self.uvs.extend([
                 [upper.x, upper.y],
@@ -107,6 +108,7 @@ impl MeshBuilder {
                 vec3!(1, 1, 1),
                 vec3!(1, 1, 0),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::Y,
         );
     }
@@ -119,6 +121,7 @@ impl MeshBuilder {
                 vec3!(1, 0, 1),
                 vec3!(0, 0, 1),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::NEG_Y,
         );
     }
@@ -131,6 +134,7 @@ impl MeshBuilder {
                 vec3!(1, 1, 0),
                 vec3!(1, 0, 0),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::NEG_Z,
         );
     }
@@ -138,11 +142,12 @@ impl MeshBuilder {
     pub fn face_back(&mut self) {
         self.add_face(
             [
-                vec3!(0, 0, 1),
                 vec3!(1, 0, 1),
                 vec3!(1, 1, 1),
                 vec3!(0, 1, 1),
+                vec3!(0, 0, 1),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::Z,
         );
     }
@@ -150,11 +155,12 @@ impl MeshBuilder {
     pub fn face_right(&mut self) {
         self.add_face(
             [
-                vec3!(0, 0, 0),
                 vec3!(0, 0, 1),
                 vec3!(0, 1, 1),
                 vec3!(0, 1, 0),
+                vec3!(0, 0, 0),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::NEG_X,
         );
     }
@@ -167,6 +173,7 @@ impl MeshBuilder {
                 vec3!(1, 1, 1),
                 vec3!(1, 0, 1),
             ],
+            [0, 1, 2, 2, 3, 0],
             Vec3::X,
         );
     }

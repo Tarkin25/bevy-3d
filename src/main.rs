@@ -6,6 +6,7 @@ use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::Debug
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
+use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
 
@@ -29,12 +30,26 @@ fn main() {
         .add_plugin(MenuPlugin)
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
+        .add_plugin(WireframeControllerPlugin)
         .add_state(AppState::InGame)
         .add_startup_system_to_stage(StartupStage::PreStartup, setup_config)
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
+        .add_startup_system(insert_sprite)
         .run();
+}
+
+fn insert_sprite(mut commands: Commands) {
+    commands.spawn_bundle(SpriteBundle {
+        sprite: Sprite {
+            color: Color::PINK,
+            custom_size: Some(Vec2::new(20.0, 20.0)),
+            ..Default::default()
+        },
+        transform: Transform::from_xyz(0.0, 100.0, 10.0),
+        ..Default::default()
+    });
 }
 
 fn textured_cube(
@@ -71,12 +86,22 @@ fn setup_light(mut commands: Commands) {
     commands.spawn_bundle(DirectionalLightBundle {
         directional_light: DirectionalLight {
             shadows_enabled: true,
-            color: Color::rgb(0.5, 0.5, 0.5),
             ..Default::default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(400.0, 800.0, 400.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     });
+
+    /* commands.spawn_bundle(PointLightBundle {
+        point_light: PointLight {
+            shadows_enabled: true,
+            range: 10_000.0,
+            intensity: 100_000_000.0,
+            ..Default::default()
+        },
+        transform: Transform::from_xyz(400.0, 800.0, 400.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..Default::default()
+    }); */
 }
 
 fn toggle_app_state(mut state: ResMut<State<AppState>>, input: Res<Input<KeyCode>>) {
