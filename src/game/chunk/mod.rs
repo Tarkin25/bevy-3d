@@ -317,7 +317,10 @@ fn compute_meshes(
     let task_pool = AsyncComputeTaskPool::get();
     let mesh_builder_settings = settings.mesh_builder;
 
-    for (entity, mut generation_task, coordinates) in &mut generation_tasks {
+    for (entity, mut generation_task, coordinates) in generation_tasks
+        .iter_mut()
+        .take(settings.task_polls_per_frame)
+    {
         if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
             let coordinates = *coordinates;
             let grid = Arc::clone(&grid);
@@ -336,9 +339,11 @@ fn spawn_chunks(
     mut meshes: ResMut<Assets<Mesh>>,
     config: Res<VoxelConfig>,
     mut mesh_computation_tasks: Query<(Entity, &mut ComputeMesh, &GridCoordinates)>,
+    settings: Res<Settings>,
 ) {
-    for (entity, mut mesh_computation_task, coordinates) in
-        mesh_computation_tasks.iter_mut().take(20)
+    for (entity, mut mesh_computation_task, coordinates) in mesh_computation_tasks
+        .iter_mut()
+        .take(settings.mesh_updates_per_frame)
     {
         if let Some(mesh) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
             let mut entity = commands.entity(entity);

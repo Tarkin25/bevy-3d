@@ -43,6 +43,8 @@ pub struct Settings {
     #[inspectable(min = 0, max = 32)]
     pub render_distance: isize,
     pub update_chunks: bool,
+    pub task_polls_per_frame: usize,
+    pub mesh_updates_per_frame: usize,
     pub mesh_builder: MeshBuilderSettings,
     pub noise: NoiseSettings,
     #[inspectable(ignore)]
@@ -88,6 +90,8 @@ impl Default for Settings {
         Self {
             render_distance: 16,
             update_chunks: true,
+            task_polls_per_frame: 100,
+            mesh_updates_per_frame: 2,
             mesh_builder: Default::default(),
             noise: Default::default(),
             prev_noise: Default::default(),
