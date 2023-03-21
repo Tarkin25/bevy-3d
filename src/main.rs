@@ -19,7 +19,7 @@ fn main() {
             title: "Voxels".into(),
             cursor_locked: true,
             cursor_visible: false,
-            mode: WindowMode::Fullscreen,
+            mode: WindowMode::BorderlessFullscreen,
             ..Default::default()
         })
         .insert_resource(AssetServerSettings {
@@ -67,12 +67,12 @@ fn setup_config(
     mut materials: ResMut<Assets<TextureAtlasMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let material = materials.add(TextureAtlasMaterial {
-        size: Vec2::new(66.0, 66.0),
-        resolution: 32.0,
-        gap: 1.0,
-        texture_handle: asset_server.load("textures/texture-atlas.png"),
-    });
+    let material = materials.add(TextureAtlasMaterial::new(
+        asset_server.load("textures/texture-atlas.png"),
+        2,
+        2,
+        1.0,
+    ));
 
     commands.insert_resource(VoxelConfig { material });
 }
