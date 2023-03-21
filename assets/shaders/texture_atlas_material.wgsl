@@ -40,8 +40,8 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
         gap.y = texture_atlas_material.gap;
     }
     var uv = vec2<f32>(
-        in.uv.x * (texture_atlas_material.resolution + gap.x) / texture_atlas_material.size.x,
-        in.uv.y * (texture_atlas_material.resolution + gap.y) / texture_atlas_material.size.y,
+        in.uv.x * (texture_atlas_material.resolution + gap.x) / texture_atlas_material.size.x - gap.x / texture_atlas_material.size.x,
+        in.uv.y * (texture_atlas_material.resolution + gap.y) / texture_atlas_material.size.y - gap.y / texture_atlas_material.size.y,
     );
     //var uv = vec2<f32>(in.uv.x / texture_atlas_material.size.x, in.uv.y / texture_atlas_material.size.y);
 
