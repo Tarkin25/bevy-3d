@@ -1,6 +1,7 @@
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
+    sprite::Rect,
 };
 use bevy_inspector_egui::Inspectable;
 
@@ -87,15 +88,15 @@ impl MeshBuilder {
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
 
-        if let Some(UvBounds { lower, upper }) = self
+        if let Some(Rect { min, max }) = self
             .block_type
             .map(|block_type| block_type.texture_uvs().uv_by_normal(normal))
         {
             self.uvs.extend([
-                [upper.x, upper.y],
-                [upper.x, lower.y],
-                [lower.x, lower.y],
-                [lower.x, upper.y],
+                [max.x, max.y],
+                [max.x, min.y],
+                [min.x, min.y],
+                [min.x, max.y],
             ]);
         }
     }

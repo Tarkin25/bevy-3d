@@ -8,17 +8,15 @@
 #import bevy_pbr::shadows
 #import bevy_pbr::pbr_functions
 
-struct TextureAtlasMaterial {
-    size: vec2<f32>,
-    resolution: f32,
-    gap: f32,
+struct ArrayTextureMaterial {
+    length: u32,
 };
 
 @group(1) @binding(0)
-var<uniform> texture_atlas_material: TextureAtlasMaterial;
+var<uniform> array_texture_material: ArrayTextureMaterial;
 
 @group(1) @binding(1)
-var texture_atlas: texture_2d<f32>;
+var array_texture: texture_2d_array<f32>;
 
 @group(1) @binding(2)
 var color_sampler: sampler;
@@ -32,20 +30,11 @@ struct FragmentInput {
 @fragment
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     var pbr_input: PbrInput = pbr_input_new();
-    var gap = vec2<f32>(0.0, 0.0);
-    if in.uv.x > 0.0 {
-        gap.x = texture_atlas_material.gap;
-    }
-    if in.uv.y > 0.0 {
-        gap.y = texture_atlas_material.gap;
-    }
-    var uv = vec2<f32>(
-        in.uv.x * (texture_atlas_material.resolution + gap.x) / texture_atlas_material.size.x - gap.x / texture_atlas_material.size.x,
-        in.uv.y * (texture_atlas_material.resolution + gap.y) / texture_atlas_material.size.y - gap.y / texture_atlas_material.size.y,
-    );
-    //var uv = vec2<f32>(in.uv.x / texture_atlas_material.size.x, in.uv.y / texture_atlas_material.size.y);
 
-    pbr_input.material.base_color = pbr_input.material.base_color * textureSample(texture_atlas, color_sampler, uv);
+    var texture_index = i32(floor(in.uv.y));
+    var uv = vec2<f32>(in.uv.x, in.uv.y - f32(texture_index));
+
+    pbr_input.material.base_color = pbr_input.material.base_color * textureSample(array_texture, color_sampler, uv, texture_index);
     pbr_input.frag_coord = in.frag_coord;
     pbr_input.world_position = in.world_position;
     pbr_input.N = prepare_normal(

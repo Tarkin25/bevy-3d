@@ -2,12 +2,13 @@ use std::sync::{Arc, RwLock};
 
 use bevy::{
     prelude::*,
+    sprite::Rect,
     tasks::{AsyncComputeTaskPool, Task},
 };
 
 use futures_lite::future;
 
-use crate::{settings::Settings, utils::ToUsize, vec3, VoxelConfig};
+use crate::{settings::Settings, utils::ToUsize, vec3, AppState, VoxelConfig};
 
 use self::{
     generator::{ChunkGenerator, ContinentalGenerator},
@@ -27,11 +28,14 @@ impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Arc::new(ChunkGrid::default()))
             .add_startup_system(insert_generator)
-            .add_system(generate_chunks)
-            .add_system(compute_meshes)
-            .add_system(spawn_chunks)
-            .add_system(unload_chunks)
-            .add_system(despawn_chunks);
+            .add_system_set(
+                SystemSet::on_update(AppState::InGame)
+                    .with_system(generate_chunks)
+                    .with_system(compute_meshes)
+                    .with_system(spawn_chunks)
+                    .with_system(unload_chunks)
+                    .with_system(despawn_chunks),
+            );
     }
 }
 
@@ -65,37 +69,51 @@ impl BlockType {
 
         match self {
             Grass => TextureUvs {
-                pos_x: UvBounds::from_index(1, 0),
-                neg_x: UvBounds::from_index(1, 0),
-                pos_y: UvBounds::from_index(0, 0),
-                neg_y: UvBounds::from_index(0, 1),
-                pos_z: UvBounds::from_index(1, 0),
-                neg_z: UvBounds::from_index(1, 0),
+                pos_x: Rect::from_array_index(1),
+                neg_x: Rect::from_array_index(1),
+                pos_y: Rect::from_array_index(0),
+                neg_y: Rect::from_array_index(2),
+                pos_z: Rect::from_array_index(1),
+                neg_z: Rect::from_array_index(1),
             },
             Stone => TextureUvs {
-                pos_x: UvBounds::from_index(1, 1),
-                neg_x: UvBounds::from_index(1, 1),
-                pos_y: UvBounds::from_index(1, 1),
-                neg_y: UvBounds::from_index(1, 1),
-                pos_z: UvBounds::from_index(1, 1),
-                neg_z: UvBounds::from_index(1, 1),
+                pos_x: Rect::from_array_index(3),
+                neg_x: Rect::from_array_index(3),
+                pos_y: Rect::from_array_index(3),
+                neg_y: Rect::from_array_index(3),
+                pos_z: Rect::from_array_index(3),
+                neg_z: Rect::from_array_index(3),
             },
+        }
+    }
+}
+
+trait RectExt: Sized {
+    fn from_array_index(index: u32) -> Self;
+}
+
+impl RectExt for Rect {
+    fn from_array_index(index: u32) -> Self {
+        let index = index as f32;
+        Rect {
+            min: Vec2::new(0.0, index + 0.0),
+            max: Vec2::new(1.0, index + 0.9),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct TextureUvs {
-    pub pos_x: UvBounds,
-    pub neg_x: UvBounds,
-    pub pos_y: UvBounds,
-    pub neg_y: UvBounds,
-    pub pos_z: UvBounds,
-    pub neg_z: UvBounds,
+    pub pos_x: Rect,
+    pub neg_x: Rect,
+    pub pos_y: Rect,
+    pub neg_y: Rect,
+    pub pos_z: Rect,
+    pub neg_z: Rect,
 }
 
 impl TextureUvs {
-    pub fn uv_by_normal(self, normal: Vec3) -> UvBounds {
+    pub fn uv_by_normal(self, normal: Vec3) -> Rect {
         if normal == Vec3::X {
             self.pos_x
         } else if normal == Vec3::NEG_X {

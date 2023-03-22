@@ -2,13 +2,12 @@
 
 use bevy::asset::AssetServerSettings;
 use bevy::{prelude::*, window::WindowMode};
+use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin};
 use bevy_3d::game::chunk::ChunkPlugin;
 use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
-use bevy_3d::texture_atlas::TextureAtlasMaterial;
-use bevy_3d::texture_atlas::TextureAtlasPlugin;
 use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
@@ -32,7 +31,7 @@ fn main() {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
                 .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
         })
-        .add_plugin(TextureAtlasPlugin)
+        .add_plugin(ArrayTexturePlugin)
         .add_plugin(ChunkPlugin)
         .add_plugin(SettingsPlugin)
         .add_plugin(MenuPlugin)
@@ -64,14 +63,22 @@ fn textured_cube(
 
 fn setup_config(
     mut commands: Commands,
-    mut materials: ResMut<Assets<TextureAtlasMaterial>>,
+    mut materials: ResMut<Assets<ArrayTextureMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    let material = materials.add(TextureAtlasMaterial::new(
+    /* let material = materials.add(TextureAtlasMaterial::new(
         asset_server.load("textures/texture-atlas.png"),
         2,
         2,
         1.0,
+    )); */
+    /* let material = materials.add(StandardMaterial {
+        base_color_texture: Some(asset_server.load("textures/texture-atlas.png")),
+        ..Default::default()
+    }); */
+    let material = materials.add(ArrayTextureMaterial::with_resolution(
+        asset_server.load("textures/texture-atlas.png"),
+        32.0,
     ));
 
     commands.insert_resource(VoxelConfig { material });
