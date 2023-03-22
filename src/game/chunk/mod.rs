@@ -132,22 +132,6 @@ impl TextureUvs {
     }
 }
 
-#[derive(Debug)]
-pub struct UvBounds {
-    pub lower: Vec2,
-    pub upper: Vec2,
-}
-
-impl UvBounds {
-    pub fn from_index(x: u32, y: u32) -> Self {
-        let index = UVec2::new(x, y).as_vec2();
-        Self {
-            lower: index,
-            upper: index + Vec2::ONE,
-        }
-    }
-}
-
 #[derive(Component)]
 pub struct Chunk {
     data: Vec<Vec<Vec<Option<BlockType>>>>,

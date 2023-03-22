@@ -7,7 +7,7 @@ use bevy_inspector_egui::Inspectable;
 
 use crate::vec3;
 
-use super::{BlockType, UvBounds};
+use super::BlockType;
 
 #[derive(Debug, Clone, Copy, Inspectable)]
 pub struct MeshBuilderSettings {
