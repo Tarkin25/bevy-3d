@@ -107,7 +107,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub const WIDTH: isize = 16;
+    pub const WIDTH: isize = 32;
     pub const HEIGHT: isize = 256;
     pub const LOWER_BOUND: isize = 0;
     pub const UPPER_BOUND: isize = Chunk::WIDTH - 1;
