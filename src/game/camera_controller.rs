@@ -142,6 +142,7 @@ pub fn camera_controller(
         }
         let mut forward = transform.forward();
         forward.y = 0.0;
+        forward = forward.normalize();
         let right = transform.right();
         transform.translation += options.velocity.x * dt * right
             + options.velocity.y * dt * Vec3::Y
