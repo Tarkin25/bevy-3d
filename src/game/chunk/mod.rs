@@ -2,7 +2,6 @@ use std::sync::{Arc, RwLock};
 
 use bevy::{
     prelude::*,
-    sprite::Rect,
     tasks::{AsyncComputeTaskPool, Task},
 };
 
@@ -64,56 +63,41 @@ pub enum BlockType {
 }
 
 impl BlockType {
-    pub fn texture_uvs(self) -> TextureUvs {
+    pub fn texture_indices(self) -> TextureIndices {
         use BlockType::*;
 
         match self {
-            Grass => TextureUvs {
-                pos_x: Rect::from_array_index(1),
-                neg_x: Rect::from_array_index(1),
-                pos_y: Rect::from_array_index(0),
-                neg_y: Rect::from_array_index(2),
-                pos_z: Rect::from_array_index(1),
-                neg_z: Rect::from_array_index(1),
+            Grass => TextureIndices {
+                pos_x: 1,
+                neg_x: 1,
+                pos_y: 0,
+                neg_y: 2,
+                pos_z: 1,
+                neg_z: 1,
             },
-            Stone => TextureUvs {
-                pos_x: Rect::from_array_index(3),
-                neg_x: Rect::from_array_index(3),
-                pos_y: Rect::from_array_index(3),
-                neg_y: Rect::from_array_index(3),
-                pos_z: Rect::from_array_index(3),
-                neg_z: Rect::from_array_index(3),
+            Stone => TextureIndices {
+                pos_x: 3,
+                neg_x: 3,
+                pos_y: 3,
+                neg_y: 3,
+                pos_z: 3,
+                neg_z: 3,
             },
         }
     }
 }
 
-trait RectExt: Sized {
-    fn from_array_index(index: u32) -> Self;
+pub struct TextureIndices {
+    pub pos_x: u32,
+    pub neg_x: u32,
+    pub pos_y: u32,
+    pub neg_y: u32,
+    pub pos_z: u32,
+    pub neg_z: u32,
 }
 
-impl RectExt for Rect {
-    fn from_array_index(index: u32) -> Self {
-        let index = index as f32;
-        Rect {
-            min: Vec2::new(0.0, index + 0.0),
-            max: Vec2::new(1.0, index + 0.9),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TextureUvs {
-    pub pos_x: Rect,
-    pub neg_x: Rect,
-    pub pos_y: Rect,
-    pub neg_y: Rect,
-    pub pos_z: Rect,
-    pub neg_z: Rect,
-}
-
-impl TextureUvs {
-    pub fn uv_by_normal(self, normal: Vec3) -> Rect {
+impl TextureIndices {
+    pub fn index_by_normal(self, normal: Vec3) -> u32 {
         if normal == Vec3::X {
             self.pos_x
         } else if normal == Vec3::NEG_X {

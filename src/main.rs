@@ -2,7 +2,7 @@
 
 use bevy::asset::AssetServerSettings;
 use bevy::{prelude::*, window::WindowMode};
-use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin};
+use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin, ATTRIBUTE_TEXTURE_INDEX};
 use bevy_3d::game::chunk::ChunkPlugin;
 use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use bevy_3d::menu::MenuPlugin;
@@ -51,7 +51,11 @@ fn textured_cube(
     mut meshes: ResMut<Assets<Mesh>>,
     config: Res<VoxelConfig>,
 ) {
-    let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    let mut mesh = Mesh::from(shape::Cube { size: 1.0 });
+    let texture_indices = (0..mesh.count_vertices())
+        .map(|_| 0_u32)
+        .collect::<Vec<_>>();
+    mesh.insert_attribute(ATTRIBUTE_TEXTURE_INDEX, texture_indices);
 
     commands.spawn_bundle(MaterialMeshBundle {
         mesh: meshes.add(mesh),

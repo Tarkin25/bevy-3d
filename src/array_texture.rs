@@ -1,15 +1,18 @@
 use bevy::{
     asset::LoadState,
+    pbr::{MaterialPipeline, MaterialPipelineKey},
     prelude::*,
     reflect::TypeUuid,
     render::{
+        mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
         render_asset::RenderAssets,
         render_resource::{
             encase::UniformBuffer, AsBindGroup, AsBindGroupError, BindGroupDescriptor,
             BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
             BindingType, BufferBindingType, BufferInitDescriptor, BufferUsages,
-            OwnedBindingResource, PreparedBindGroup, SamplerBindingType, ShaderRef, ShaderStages,
-            ShaderType, TextureSampleType, TextureViewDimension,
+            OwnedBindingResource, PreparedBindGroup, RenderPipelineDescriptor, SamplerBindingType,
+            ShaderRef, ShaderStages, ShaderType, SpecializedMeshPipelineError, TextureSampleType,
+            TextureViewDimension, VertexFormat,
         },
         renderer::RenderDevice,
         texture::FallbackImage,
@@ -41,6 +44,9 @@ enum Length {
     Initialized(u32),
     Uninitialized(f32),
 }
+
+pub const ATTRIBUTE_TEXTURE_INDEX: MeshVertexAttribute =
+    MeshVertexAttribute::new("ATTRIBUTE_TEXTURE_INDEX", 100, VertexFormat::Uint32);
 
 impl ArrayTextureMaterial {
     pub fn with_length(texture: Handle<Image>, length: u32) -> Self {
@@ -102,6 +108,39 @@ impl ArrayTextureMaterial {
 impl Material for ArrayTextureMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/array_texture.wgsl".into()
+    }
+
+    fn vertex_shader() -> ShaderRef {
+        "shaders/array_texture.wgsl".into()
+    }
+
+    fn specialize(
+        _pipeline: &MaterialPipeline<Self>,
+        descriptor: &mut RenderPipelineDescriptor,
+        layout: &MeshVertexBufferLayout,
+        _key: MaterialPipelineKey<Self>,
+    ) -> Result<(), SpecializedMeshPipelineError> {
+        let vertex_layout = layout.get_layout(&[
+            Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
+            Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
+            Mesh::ATTRIBUTE_UV_0.at_shader_location(2),
+            // Mesh::ATTRIBUTE_TANGENT.at_shader_location(3),
+            // Mesh::ATTRIBUTE_COLOR.at_shader_location(4),
+            // Mesh::ATTRIBUTE_JOINT_INDEX.at_shader_location(5),
+            // Mesh::ATTRIBUTE_JOINT_WEIGHT.at_shader_location(6),
+            ATTRIBUTE_TEXTURE_INDEX.at_shader_location(7),
+        ])?;
+
+        let shader_defs =
+            ["VERTEX_POSITIONS", "VERTEX_NORMALS", "VERTEX_UVS"].map(|s| s.to_string());
+
+        descriptor.vertex.shader_defs.extend(shader_defs.clone());
+        if let Some(fragment) = descriptor.fragment.as_mut() {
+            fragment.shader_defs.extend(shader_defs);
+        }
+
+        descriptor.vertex.buffers = vec![vertex_layout];
+        Ok(())
     }
 }
 

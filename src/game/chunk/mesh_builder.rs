@@ -1,11 +1,10 @@
 use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
-    sprite::Rect,
 };
 use bevy_inspector_egui::Inspectable;
 
-use crate::vec3;
+use crate::{array_texture::ATTRIBUTE_TEXTURE_INDEX, vec3};
 
 use super::BlockType;
 
@@ -27,6 +26,7 @@ pub struct MeshBuilder {
     vertex_count: u32,
     normals: Vec<Vec3>,
     uvs: Vec<[f32; 2]>,
+    texture_indices: Vec<u32>,
     position: Vec3,
     block_type: Option<BlockType>,
     settings: MeshBuilderSettings,
@@ -41,6 +41,7 @@ impl MeshBuilder {
             vertex_count: Default::default(),
             normals: Default::default(),
             uvs: Default::default(),
+            texture_indices: Default::default(),
             position: Default::default(),
             block_type: Default::default(),
         }
@@ -65,6 +66,7 @@ impl MeshBuilder {
             mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, self.uvs);
         }
 
+        mesh.insert_attribute(ATTRIBUTE_TEXTURE_INDEX, self.texture_indices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
         mesh.set_indices(Some(Indices::U32(self.indices)));
@@ -88,7 +90,7 @@ impl MeshBuilder {
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
 
-        if let Some(Rect { min, max }) = self
+        /* if let Some(Rect { min, max }) = self
             .block_type
             .map(|block_type| block_type.texture_uvs().uv_by_normal(normal))
         {
@@ -98,6 +100,15 @@ impl MeshBuilder {
                 [min.x, min.y],
                 [min.x, max.y],
             ]);
+        } */
+        self.uvs
+            .extend([[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
+
+        if let Some(texture_index) = self
+            .block_type
+            .map(|block_type| block_type.texture_indices().index_by_normal(normal))
+        {
+            self.texture_indices.extend([texture_index; 4]);
         }
     }
 
