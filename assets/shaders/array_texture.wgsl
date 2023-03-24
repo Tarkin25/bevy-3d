@@ -81,7 +81,11 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
     pbr_input.V = calculate_view(in.world_position, pbr_input.is_orthographic);
 
-    return tone_mapping(pbr(pbr_input));
+    var output_color = pbr(pbr_input);
+    output_color = apply_fog(output_color, in.world_position.xyz, view.world_position.xyz);
+    output_color = tone_mapping(output_color);
+
+    return output_color;
 }
 
 @vertex

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::{prelude::*, window::WindowMode};
 use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin, ATTRIBUTE_TEXTURE_INDEX};
 use bevy_3d::game::chunk::ChunkPlugin;
@@ -7,6 +8,7 @@ use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::Debug
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
+use bevy_3d::skybox::SkyboxPlugin;
 use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
@@ -45,6 +47,7 @@ fn main() {
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
         .add_plugin(WireframeControllerPlugin)
+        .add_plugin(SkyboxPlugin)
         .add_startup_system(setup_config.in_base_set(StartupSet::PreStartup))
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
@@ -91,18 +94,24 @@ fn setup_light(mut commands: Commands) {
             shadows_enabled: true,
             ..Default::default()
         },
-        transform: Transform::from_xyz(400.0, 800.0, 400.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+        cascade_shadow_config: CascadeShadowConfigBuilder {
+            first_cascade_far_bound: 0.3,
+            maximum_distance: 3.0,
+            ..Default::default()
+        }
+        .build(),
         ..Default::default()
     });
 
-    /* commands.spawn_bundle(PointLightBundle {
+    /* commands.spawn(PointLightBundle {
         point_light: PointLight {
             shadows_enabled: true,
-            range: 10_000.0,
-            intensity: 100_000_000.0,
+            range: 1_500.0,
+            intensity: 0.0,
             ..Default::default()
         },
-        transform: Transform::from_xyz(400.0, 800.0, 400.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
     }); */
 }
