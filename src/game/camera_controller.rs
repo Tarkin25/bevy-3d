@@ -2,7 +2,7 @@ use bevy::{input::mouse::MouseMotion, prelude::*};
 
 use crate::AppState;
 
-#[derive(Clone)]
+#[derive(Clone, Resource)]
 pub struct CameraControllerPlugin {
     pub transform: Transform,
 }
@@ -11,17 +11,18 @@ impl Plugin for CameraControllerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
             .add_startup_system(setup_camera)
-            .add_system_set(SystemSet::on_update(AppState::InGame).with_system(camera_controller));
+            .add_system(camera_controller.in_set(OnUpdate(AppState::InGame)));
     }
 }
 
 fn setup_camera(mut commands: Commands, plugin: Res<CameraControllerPlugin>) {
-    commands
-        .spawn_bundle(Camera3dBundle {
+    commands.spawn((
+        Camera3dBundle {
             transform: plugin.transform,
             ..Default::default()
-        })
-        .insert(CameraController::default());
+        },
+        CameraController::default(),
+    ));
 }
 
 #[derive(Component)]

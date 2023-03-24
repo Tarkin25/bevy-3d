@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext};
+use bevy_egui::{egui, EguiContexts};
 
 use crate::{settings::Settings, AppState};
 
@@ -9,14 +9,14 @@ pub struct DebugInfoPlugin;
 
 impl Plugin for DebugInfoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_update(AppState::InGame).with_system(show_debug_info));
+        app.add_system(show_debug_info.in_set(OnUpdate(AppState::InGame)));
     }
 }
 
 fn show_debug_info(
     player: Query<&Transform, With<CameraController>>,
     settings: Res<Settings>,
-    mut context: ResMut<EguiContext>,
+    mut context: EguiContexts,
 ) {
     let player = player.single();
 

@@ -1,3 +1,6 @@
+use std::sync::{Arc, RwLock};
+
+use bevy::prelude::{Deref, Resource};
 use bracket_noise::prelude::*;
 use splines::{Interpolation, Key, Spline};
 use tap::Pipe;
@@ -5,6 +8,15 @@ use tap::Pipe;
 use crate::{settings::NoiseSettings, utils::ToUsize};
 
 use super::{BlockType, Chunk};
+
+#[derive(Resource, Deref)]
+pub struct ChunkGeneratorResource(Arc<RwLock<dyn ChunkGenerator>>);
+
+impl ChunkGeneratorResource {
+    pub fn new(generator: impl ChunkGenerator + 'static) -> Self {
+        Self(Arc::new(RwLock::new(generator)))
+    }
+}
 
 pub trait ChunkGenerator: Send + Sync {
     fn generate(&self, position: [isize; 3]) -> Chunk;

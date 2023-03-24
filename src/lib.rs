@@ -16,12 +16,14 @@ macro_rules! vec3 {
     };
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
 pub enum AppState {
     Menu,
+    #[default]
     InGame,
 }
 
+#[derive(Resource)]
 pub struct VoxelConfig {
     pub material: Handle<ArrayTextureMaterial>,
 }

@@ -131,8 +131,7 @@ impl Material for ArrayTextureMaterial {
             ATTRIBUTE_TEXTURE_INDEX.at_shader_location(7),
         ])?;
 
-        let shader_defs =
-            ["VERTEX_POSITIONS", "VERTEX_NORMALS", "VERTEX_UVS"].map(|s| s.to_string());
+        let shader_defs = ["VERTEX_POSITIONS", "VERTEX_NORMALS", "VERTEX_UVS"].map(|s| s.into());
 
         descriptor.vertex.shader_defs.extend(shader_defs.clone());
         if let Some(fragment) = descriptor.fragment.as_mut() {
@@ -152,7 +151,7 @@ impl AsBindGroup for ArrayTextureMaterial {
         render_device: &RenderDevice,
         images: &RenderAssets<Image>,
         fallback_image: &FallbackImage,
-    ) -> Result<PreparedBindGroup<Self>, AsBindGroupError> {
+    ) -> Result<PreparedBindGroup<()>, AsBindGroupError> {
         match self.length {
             Length::Initialized(length) if self.image_reinterpreted => {
                 self.create_bind_group(layout, render_device, images, fallback_image, length)
@@ -203,7 +202,7 @@ impl ArrayTextureMaterial {
         images: &RenderAssets<Image>,
         fallback_image: &FallbackImage,
         length: u32,
-    ) -> Result<PreparedBindGroup<Self>, AsBindGroupError> {
+    ) -> Result<PreparedBindGroup<()>, AsBindGroupError> {
         let bindings = vec![
             OwnedBindingResource::TextureView({
                 let handle: Option<&bevy::asset::Handle<Image>> = (&self.texture).into();

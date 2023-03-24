@@ -2,13 +2,14 @@ use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
-use bevy_inspector_egui::Inspectable;
+use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
 
 use crate::{array_texture::ATTRIBUTE_TEXTURE_INDEX, vec3};
 
 use super::BlockType;
 
-#[derive(Debug, Clone, Copy, Inspectable)]
+#[derive(Debug, Clone, Copy, Reflect, InspectorOptions)]
+#[reflect(InspectorOptions)]
 pub struct MeshBuilderSettings {
     pub voxel_size: f32,
 }
@@ -89,18 +90,6 @@ impl MeshBuilder {
             .extend(unit_indices.map(|i| i + self.vertex_count));
         self.normals.extend([normal; 4]);
         self.vertex_count += 4;
-
-        /* if let Some(Rect { min, max }) = self
-            .block_type
-            .map(|block_type| block_type.texture_uvs().uv_by_normal(normal))
-        {
-            self.uvs.extend([
-                [max.x, max.y],
-                [max.x, min.y],
-                [min.x, min.y],
-                [min.x, max.y],
-            ]);
-        } */
         self.uvs
             .extend([[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]);
 

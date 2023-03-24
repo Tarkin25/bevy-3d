@@ -12,11 +12,9 @@ impl Plugin for MyMaterialPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(MaterialPlugin::<MyMaterial>::default())
             .add_startup_system(setup)
-            .add_system_set(
-                SystemSet::on_update(AppState::InGame)
-                    .with_system(move_movables)
-                    .with_system(update_material_time)
-                    .with_system(update_transparency),
+            .add_systems(
+                (move_movables, update_material_time, update_transparency)
+                    .in_set(OnUpdate(AppState::InGame)),
             );
     }
 }
@@ -26,8 +24,8 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<MyMaterial>>,
 ) {
-    commands
-        .spawn_bundle(MaterialMeshBundle {
+    commands.spawn((
+        MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             transform: Transform::from_xyz(0.0, 99.0, 0.0),
             material: materials.add(MyMaterial {
@@ -36,8 +34,9 @@ fn setup(
                 opacity: 1.0,
             }),
             ..Default::default()
-        })
-        .insert(Movable);
+        },
+        Movable,
+    ));
 }
 
 #[derive(AsBindGroup, TypeUuid, Clone)]
@@ -93,7 +92,7 @@ fn move_movables(
 
 fn update_material_time(mut materials: ResMut<Assets<MyMaterial>>, time: Res<Time>) {
     for (_, mut material) in materials.iter_mut() {
-        material.time = time.seconds_since_startup() as f32;
+        material.time = time.elapsed_seconds();
     }
 }
 

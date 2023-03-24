@@ -1,21 +1,21 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::{plugin::InspectorWindows, Inspectable, InspectorPlugin};
+use bevy_inspector_egui::{
+    prelude::ReflectInspectorOptions, quick::ResourceInspectorPlugin, InspectorOptions,
+};
 
-use crate::{game::chunk::mesh_builder::MeshBuilderSettings, AppState};
+use crate::game::chunk::mesh_builder::MeshBuilderSettings;
 
 pub struct SettingsPlugin;
 
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Settings::default())
-            .add_plugin(InspectorPlugin::<Settings>::new())
-            .add_system_set(SystemSet::on_enter(AppState::InGame).with_system(hide_menu))
-            .add_system_set(SystemSet::on_enter(AppState::Menu).with_system(show_menu))
+            .add_plugin(ResourceInspectorPlugin::<Settings>::default())
             .add_system(update_render_distance);
     }
 }
 
-fn show_menu(mut inspector_windows: ResMut<InspectorWindows>) {
+/* fn show_menu(mut inspector_windows: ResMut<InspectorWindows>) {
     let mut settings_inspector = inspector_windows.window_data_mut::<Settings>();
     settings_inspector.visible = true;
 }
@@ -23,7 +23,7 @@ fn show_menu(mut inspector_windows: ResMut<InspectorWindows>) {
 fn hide_menu(mut inspector_windows: ResMut<InspectorWindows>) {
     let mut settings_inspector = inspector_windows.window_data_mut::<Settings>();
     settings_inspector.visible = false;
-}
+} */
 
 fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Settings>) {
     if input.just_pressed(KeyCode::W) {
@@ -38,16 +38,16 @@ fn update_render_distance(input: Res<Input<KeyCode>>, mut settings: ResMut<Setti
     }
 }
 
-#[derive(Clone, Copy, Inspectable)]
+#[derive(Clone, Copy, Resource, Reflect, InspectorOptions)]
+#[reflect(InspectorOptions)]
 pub struct Settings {
-    #[inspectable(min = 0, max = 32)]
+    #[inspector(min = 0, max = 32)]
     pub render_distance: isize,
     pub update_chunks: bool,
     pub task_polls_per_frame: usize,
     pub mesh_updates_per_frame: usize,
     pub mesh_builder: MeshBuilderSettings,
     pub noise: NoiseSettings,
-    #[inspectable(ignore)]
     prev_noise: NoiseSettings,
 }
 
@@ -62,7 +62,8 @@ impl Settings {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Inspectable)]
+#[derive(Debug, Clone, Copy, PartialEq, Reflect, InspectorOptions)]
+#[reflect(InspectorOptions)]
 pub struct NoiseSettings {
     pub octaves: i32,
     pub lacunarity: f32,

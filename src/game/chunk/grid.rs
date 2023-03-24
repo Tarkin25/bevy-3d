@@ -1,4 +1,7 @@
-use std::ops::{Add, Deref, DerefMut, Sub};
+use std::{
+    ops::{Add, Deref, DerefMut, Sub},
+    sync::Arc,
+};
 
 use bevy::prelude::*;
 use dashmap::DashMap;
@@ -10,12 +13,15 @@ use super::{
     Chunk,
 };
 
+#[derive(Resource, Clone, Deref, Default)]
+pub struct ChunkGrid(Arc<ChunkGridInner>);
+
 #[derive(Default)]
-pub struct ChunkGrid {
+pub struct ChunkGridInner {
     chunks: DashMap<GridCoordinates, Option<Chunk>>,
 }
 
-impl ChunkGrid {
+impl ChunkGridInner {
     pub fn compute_mesh(
         &self,
         coordinates: GridCoordinates,
@@ -60,7 +66,7 @@ impl ChunkGrid {
     }
 }
 
-impl Deref for ChunkGrid {
+impl Deref for ChunkGridInner {
     type Target = DashMap<GridCoordinates, Option<Chunk>>;
 
     fn deref(&self) -> &Self::Target {
@@ -68,7 +74,7 @@ impl Deref for ChunkGrid {
     }
 }
 
-impl DerefMut for ChunkGrid {
+impl DerefMut for ChunkGridInner {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.chunks
     }

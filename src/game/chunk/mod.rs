@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use bevy::{
     prelude::*,
@@ -10,8 +10,8 @@ use futures_lite::future;
 use crate::{settings::Settings, utils::ToUsize, vec3, AppState, VoxelConfig};
 
 use self::{
-    generator::{ChunkGenerator, ContinentalGenerator},
-    grid::{ChunkGrid, GridCoordinates},
+    generator::{ChunkGenerator, ChunkGeneratorResource, ContinentalGenerator},
+    grid::{ChunkGrid, ChunkGridInner, GridCoordinates},
     mesh_builder::{MeshBuilder, MeshBuilderSettings},
 };
 
@@ -25,15 +25,17 @@ pub struct ChunkPlugin;
 
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Arc::new(ChunkGrid::default()))
+        app.insert_resource(ChunkGrid::default())
             .add_startup_system(insert_generator)
-            .add_system_set(
-                SystemSet::on_update(AppState::InGame)
-                    .with_system(generate_chunks)
-                    .with_system(compute_meshes)
-                    .with_system(spawn_chunks)
-                    .with_system(unload_chunks)
-                    .with_system(despawn_chunks),
+            .add_systems(
+                (
+                    generate_chunks,
+                    compute_meshes,
+                    spawn_chunks,
+                    unload_chunks,
+                    despawn_chunks,
+                )
+                    .in_set(OnUpdate(AppState::InGame)),
             );
     }
 }
@@ -51,7 +53,7 @@ fn insert_generator(mut commands: Commands, settings: Res<Settings>) {
         ],
     );
     generator.apply_noise_settings(settings.noise);
-    let generator: Arc<RwLock<dyn ChunkGenerator>> = Arc::new(RwLock::new(generator));
+    let generator = ChunkGeneratorResource::new(generator);
 
     commands.insert_resource(generator);
 }
@@ -148,7 +150,7 @@ impl Chunk {
 
     fn check_adjacent_chunk(
         &self,
-        grid: &Arc<ChunkGrid>,
+        grid: &Arc<ChunkGridInner>,
         grid_offset: [isize; 3],
         chunk_coordinates: [isize; 3],
     ) -> bool {
@@ -171,7 +173,7 @@ impl Chunk {
     }
 
     /// http://ilkinulas.github.io/development/unity/2016/04/30/cube-mesh-in-unity3d.html
-    pub fn compute_mesh(&self, settings: MeshBuilderSettings, grid: Arc<ChunkGrid>) -> Mesh {
+    pub fn compute_mesh(&self, settings: MeshBuilderSettings, grid: Arc<ChunkGridInner>) -> Mesh {
         let mut builder = MeshBuilder::new(settings);
 
         for x in 0..Chunk::WIDTH {
@@ -209,7 +211,7 @@ impl Chunk {
         builder.build()
     }
 
-    fn adjacent_is_solid(&self, [x, y, z]: [isize; 3], grid: &Arc<ChunkGrid>) -> bool {
+    fn adjacent_is_solid(&self, [x, y, z]: [isize; 3], grid: &Arc<ChunkGridInner>) -> bool {
         if x < Chunk::LOWER_BOUND {
             return self.check_adjacent_chunk(
                 grid,
@@ -242,7 +244,7 @@ impl Chunk {
         self.data[x.to_usize()][y.to_usize()][z.to_usize()].is_some()
     }
 
-    fn adjacent_is_air(&self, [x, y, z]: [isize; 3], grid: &Arc<ChunkGrid>) -> bool {
+    fn adjacent_is_air(&self, [x, y, z]: [isize; 3], grid: &Arc<ChunkGridInner>) -> bool {
         !self.adjacent_is_solid([x, y, z], grid)
     }
 }
@@ -256,8 +258,8 @@ struct ComputeMesh(Task<Mesh>);
 fn generate_chunks(
     mut commands: Commands,
     player: Query<&Transform, With<CameraController>>,
-    grid: Res<Arc<ChunkGrid>>,
-    generator: Res<Arc<RwLock<dyn ChunkGenerator>>>,
+    grid: Res<ChunkGrid>,
+    generator: Res<ChunkGeneratorResource>,
     settings: Res<Settings>,
 ) {
     if settings.update_chunks {
@@ -282,10 +284,7 @@ fn generate_chunks(
                         generator.read().unwrap().generate(chunk_coordinates.into())
                     });
 
-                    commands
-                        .spawn()
-                        .insert(GenerateChunk(task))
-                        .insert(chunk_coordinates);
+                    commands.spawn((GenerateChunk(task), chunk_coordinates));
 
                     grid.insert(chunk_coordinates, None);
                 }
@@ -297,7 +296,7 @@ fn generate_chunks(
 fn compute_meshes(
     mut commands: Commands,
     mut generation_tasks: Query<(Entity, &mut GenerateChunk, &GridCoordinates)>,
-    grid: Res<Arc<ChunkGrid>>,
+    grid: Res<ChunkGrid>,
     settings: Res<Settings>,
 ) {
     let task_pool = AsyncComputeTaskPool::get();
@@ -333,7 +332,7 @@ fn spawn_chunks(
     {
         if let Some(mesh) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
             let mut entity = commands.entity(entity);
-            entity.insert_bundle(MaterialMeshBundle {
+            entity.insert(MaterialMeshBundle {
                 mesh: meshes.add(mesh),
                 material: config.material.clone(),
                 transform: Transform::from_translation((*coordinates).into()),
@@ -348,7 +347,7 @@ fn unload_chunks(
     mut commands: Commands,
     mut chunks: Query<(Entity, &GridCoordinates)>,
     player: Query<&Transform, With<CameraController>>,
-    grid: Res<Arc<ChunkGrid>>,
+    grid: Res<ChunkGrid>,
     settings: Res<Settings>,
 ) {
     if settings.update_chunks {

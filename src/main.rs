@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use bevy::asset::AssetServerSettings;
 use bevy::{prelude::*, window::WindowMode};
 use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin, ATTRIBUTE_TEXTURE_INDEX};
 use bevy_3d::game::chunk::ChunkPlugin;
@@ -14,18 +13,26 @@ use bevy_egui::EguiPlugin;
 
 fn main() {
     App::new()
-        .insert_resource(WindowDescriptor {
-            title: "Voxels".into(),
-            cursor_locked: true,
-            cursor_visible: false,
-            mode: WindowMode::BorderlessFullscreen,
-            ..Default::default()
-        })
-        .insert_resource(AssetServerSettings {
-            watch_for_changes: true,
-            ..Default::default()
-        })
-        .add_plugins(DefaultPlugins)
+        .add_state::<AppState>()
+        .init_schedule(OnEnter(AppState::Menu))
+        .init_schedule(OnExit(AppState::Menu))
+        .init_schedule(OnEnter(AppState::InGame))
+        .init_schedule(OnExit(AppState::InGame))
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Voxels".into(),
+                        mode: WindowMode::BorderlessFullscreen,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                })
+                .set(AssetPlugin {
+                    watch_for_changes: true,
+                    ..Default::default()
+                }),
+        )
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
@@ -38,8 +45,7 @@ fn main() {
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
         .add_plugin(WireframeControllerPlugin)
-        .add_state(AppState::InGame)
-        .add_startup_system_to_stage(StartupStage::PreStartup, setup_config)
+        .add_startup_system(setup_config.in_base_set(StartupSet::PreStartup))
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
@@ -57,7 +63,7 @@ fn textured_cube(
         .collect::<Vec<_>>();
     mesh.insert_attribute(ATTRIBUTE_TEXTURE_INDEX, texture_indices);
 
-    commands.spawn_bundle(MaterialMeshBundle {
+    commands.spawn(MaterialMeshBundle {
         mesh: meshes.add(mesh),
         material: config.material.clone(),
         transform: Transform::from_xyz(2.0, 99.0, 0.0),
@@ -70,16 +76,6 @@ fn setup_config(
     mut materials: ResMut<Assets<ArrayTextureMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    /* let material = materials.add(TextureAtlasMaterial::new(
-        asset_server.load("textures/texture-atlas.png"),
-        2,
-        2,
-        1.0,
-    )); */
-    /* let material = materials.add(StandardMaterial {
-        base_color_texture: Some(asset_server.load("textures/texture-atlas.png")),
-        ..Default::default()
-    }); */
     let material = materials.add(ArrayTextureMaterial::with_resolution(
         asset_server.load("textures/texture-atlas.png"),
         32.0,
@@ -90,7 +86,7 @@ fn setup_config(
 
 fn setup_light(mut commands: Commands) {
     // Light
-    commands.spawn_bundle(DirectionalLightBundle {
+    commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             shadows_enabled: true,
             ..Default::default()
@@ -111,13 +107,17 @@ fn setup_light(mut commands: Commands) {
     }); */
 }
 
-fn toggle_app_state(mut state: ResMut<State<AppState>>, input: Res<Input<KeyCode>>) {
+fn toggle_app_state(
+    state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    input: Res<Input<KeyCode>>,
+) {
     if input.just_pressed(KeyCode::Escape) {
-        let new_state = match *state.current() {
+        let new_state = match state.0 {
             AppState::InGame => AppState::Menu,
             AppState::Menu => AppState::InGame,
         };
 
-        state.set(new_state).unwrap();
+        next_state.set(new_state);
     }
 }

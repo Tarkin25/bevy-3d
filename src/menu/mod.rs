@@ -1,14 +1,12 @@
-use std::sync::{Arc, RwLock};
-
-use bevy::{app::AppExit, prelude::*};
+use bevy::{app::AppExit, prelude::*, window::CursorGrabMode};
 use bevy_egui::{
     egui::{self, Align2},
-    EguiContext,
+    EguiContexts,
 };
 
 use crate::{
     game::chunk::{
-        generator::ChunkGenerator,
+        generator::ChunkGeneratorResource,
         grid::{ChunkGrid, GridCoordinates},
         DespawnChunk,
     },
@@ -21,36 +19,35 @@ pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(configure_egui)
-            .add_system_set(SystemSet::on_enter(AppState::Menu).with_system(free_cursor))
-            .add_system_set(SystemSet::on_update(AppState::Menu).with_system(show_menu))
-            .add_system_set(
-                SystemSet::on_exit(AppState::Menu)
-                    .with_system(capture_cursor)
-                    .with_system(apply_noise_settings),
+            .add_system(free_cursor.in_schedule(OnEnter(AppState::Menu)))
+            .add_system(show_menu.in_set(OnUpdate(AppState::Menu)))
+            .add_systems(
+                (capture_cursor, apply_noise_settings).in_schedule(OnEnter(AppState::InGame)),
             );
     }
 }
 
-fn free_cursor(mut windows: ResMut<Windows>) {
-    for window in windows.iter_mut() {
-        window.set_cursor_visibility(true);
-        window.set_cursor_lock_mode(false);
-        window.set_cursor_position(Vec2::new(window.width() / 2.0, window.height() / 2.0));
+fn free_cursor(mut windows: Query<&mut Window>) {
+    for mut window in &mut windows {
+        window.cursor.grab_mode = CursorGrabMode::None;
+        window.cursor.visible = true;
+        let cursor_position = Vec2::new(window.width() / 2.0, window.height() / 2.0);
+        window.set_cursor_position(Some(cursor_position));
     }
 }
 
-fn capture_cursor(mut windows: ResMut<Windows>) {
-    for window in windows.iter_mut() {
-        window.set_cursor_visibility(false);
-        window.set_cursor_lock_mode(true);
+fn capture_cursor(mut windows: Query<&mut Window>) {
+    for mut window in &mut windows {
+        window.cursor.grab_mode = CursorGrabMode::Confined;
+        window.cursor.visible = false;
     }
 }
 
 fn configure_egui() {}
 
 fn show_menu(
-    mut context: ResMut<EguiContext>,
-    mut state: ResMut<State<AppState>>,
+    mut context: EguiContexts,
+    mut state: ResMut<NextState<AppState>>,
     mut exit: EventWriter<AppExit>,
 ) {
     egui::Window::new("menu")
@@ -64,7 +61,7 @@ fn show_menu(
                 .add_sized([ui.available_width(), 0.0], egui::Button::new("Resume"))
                 .clicked()
             {
-                state.set(AppState::InGame).unwrap();
+                state.set(AppState::InGame);
             } else if ui
                 .add_sized([ui.available_width(), 0.0], egui::Button::new("Exit"))
                 .clicked()
@@ -72,17 +69,14 @@ fn show_menu(
                 exit.send(AppExit);
             }
         });
-
-    let font = egui::FontId::proportional(32.0);
-    context.ctx_mut().fonts().row_height(&font);
 }
 
 fn apply_noise_settings(
     mut commands: Commands,
     mut settings: ResMut<Settings>,
-    generator: Res<Arc<RwLock<dyn ChunkGenerator>>>,
+    generator: Res<ChunkGeneratorResource>,
     chunks: Query<(Entity, &GridCoordinates)>,
-    grid: Res<Arc<ChunkGrid>>,
+    grid: Res<ChunkGrid>,
 ) {
     if settings.detect_changes() {
         generator
