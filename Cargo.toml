@@ -13,11 +13,9 @@ opt-level = 3
 bevy = { version = "0.10" }
 bevy-inspector-egui = "0.18"
 bevy_egui = "0.20"
-bracket-noise = "0.8.2"
 dashmap = "5.3.4"
 futures-lite = "1.12.0"
-noise = "0.7.0"
-splines = "4.1.1"
+noise = "0.8.2"
 tap = "1.0.1"
 
 [dev-dependencies]

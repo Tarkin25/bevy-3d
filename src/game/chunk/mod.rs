@@ -10,7 +10,7 @@ use futures_lite::future;
 use crate::{settings::Settings, utils::ToUsize, vec3, AppState, VoxelConfig};
 
 use self::{
-    generator::{ChunkGenerator, ChunkGeneratorResource, ContinentalGenerator},
+    generator::ChunkGenerator,
     grid::{ChunkGrid, ChunkGridInner, GridCoordinates},
     mesh_builder::{MeshBuilder, MeshBuilderSettings},
 };
@@ -25,8 +25,8 @@ pub struct ChunkPlugin;
 
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ChunkGrid::default())
-            .add_startup_system(insert_generator)
+        app.init_resource::<ChunkGrid>()
+            .init_resource::<ChunkGenerator>()
             .add_systems(
                 (
                     generate_chunks,
@@ -38,24 +38,6 @@ impl Plugin for ChunkPlugin {
                     .in_set(OnUpdate(AppState::InGame)),
             );
     }
-}
-
-fn insert_generator(mut commands: Commands, settings: Res<Settings>) {
-    let mut generator = ContinentalGenerator::new(
-        50,
-        [
-            (-1.0, 50.0),
-            (-0.7, 80.0),
-            (-0.5, 75.0),
-            (-0.4, 20.0),
-            (0.0, 0.0),
-            (1.0, 50.0),
-        ],
-    );
-    generator.apply_noise_settings(settings.noise);
-    let generator = ChunkGeneratorResource::new(generator);
-
-    commands.insert_resource(generator);
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -259,7 +241,7 @@ fn generate_chunks(
     mut commands: Commands,
     player: Query<&Transform, With<CameraController>>,
     grid: Res<ChunkGrid>,
-    generator: Res<ChunkGeneratorResource>,
+    generator: Res<ChunkGenerator>,
     settings: Res<Settings>,
 ) {
     if settings.update_chunks {
@@ -278,11 +260,10 @@ fn generate_chunks(
                     + [x * Chunk::WIDTH as isize, 0, z * Chunk::WIDTH as isize];
 
                 if !grid.contains_key(&chunk_coordinates) {
-                    let generator = Arc::clone(&generator);
+                    let generator = generator.clone();
 
-                    let task = task_pool.spawn(async move {
-                        generator.read().unwrap().generate(chunk_coordinates.into())
-                    });
+                    let task = task_pool
+                        .spawn(async move { generator.generate_chunk(chunk_coordinates.into()) });
 
                     commands.spawn((GenerateChunk(task), chunk_coordinates));
 

@@ -65,24 +65,12 @@ impl Settings {
 #[derive(Debug, Clone, Copy, PartialEq, Reflect, InspectorOptions)]
 #[reflect(InspectorOptions)]
 pub struct NoiseSettings {
-    pub octaves: i32,
-    pub lacunarity: f32,
-    pub gain: f32,
-    pub frequency: f32,
-    pub amplitude: f32,
-    pub scale: f32,
+    pub scale: u32,
 }
 
 impl Default for NoiseSettings {
     fn default() -> Self {
-        Self {
-            octaves: 3,
-            lacunarity: 2.0,
-            gain: 0.5,
-            frequency: 2.0,
-            amplitude: 100.0,
-            scale: 0.005,
-        }
+        Self { scale: 100 }
     }
 }
 

@@ -6,7 +6,7 @@ use bevy_egui::{
 
 use crate::{
     game::chunk::{
-        generator::ChunkGeneratorResource,
+        generator::ChunkGenerator,
         grid::{ChunkGrid, GridCoordinates},
         DespawnChunk,
     },
@@ -74,15 +74,13 @@ fn show_menu(
 fn apply_noise_settings(
     mut commands: Commands,
     mut settings: ResMut<Settings>,
-    generator: Res<ChunkGeneratorResource>,
+    generator: Res<ChunkGenerator>,
     chunks: Query<(Entity, &GridCoordinates)>,
     grid: Res<ChunkGrid>,
 ) {
     if settings.detect_changes() {
-        generator
-            .write()
-            .unwrap()
-            .apply_noise_settings(settings.noise);
+        generator.set_scale(settings.noise.scale);
+
         for (entity, coordinates) in chunks.iter() {
             grid.remove(coordinates);
             commands.entity(entity).insert(DespawnChunk);
