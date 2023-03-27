@@ -79,8 +79,8 @@ impl Default for Settings {
         Self {
             render_distance: 16,
             update_chunks: true,
-            task_polls_per_frame: 100,
-            mesh_updates_per_frame: 2,
+            task_polls_per_frame: 1,
+            mesh_updates_per_frame: 1,
             mesh_builder: Default::default(),
             noise: Default::default(),
             prev_noise: Default::default(),

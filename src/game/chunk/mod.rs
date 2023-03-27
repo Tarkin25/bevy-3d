@@ -2,14 +2,18 @@ use std::sync::Arc;
 
 use bevy::{
     prelude::*,
+    reflect::TypeUuid,
     tasks::{AsyncComputeTaskPool, Task},
 };
+
+use bevy_rapier3d::prelude::*;
 
 use futures_lite::future;
 
 use crate::{settings::Settings, utils::ToUsize, vec3, AppState, VoxelConfig};
 
 use self::{
+    chunk_data_generation_future::ChunkDataGenerationFuture,
     generator::ChunkGenerator,
     grid::{ChunkGrid, ChunkGridInner, GridCoordinates},
     mesh_builder::{MeshBuilder, MeshBuilderSettings},
@@ -17,6 +21,7 @@ use self::{
 
 use super::camera_controller::CameraController;
 
+mod chunk_data_generation_future;
 pub mod generator;
 pub mod grid;
 pub mod mesh_builder;
@@ -27,11 +32,12 @@ impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ChunkGrid>()
             .init_resource::<ChunkGenerator>()
+            .add_asset::<GeneratedChunkData>()
             .add_systems(
                 (
-                    generate_chunks,
-                    compute_meshes,
-                    spawn_chunks,
+                    Chunk::trigger_generation,
+                    Chunk::poll_generation_tasks,
+                    Chunk::insert_meshes_and_colliders,
                     unload_chunks,
                     despawn_chunks,
                 )
@@ -98,6 +104,13 @@ impl TextureIndices {
             panic!("Invalid normal provided")
         }
     }
+}
+
+#[derive(Component, TypeUuid)]
+#[uuid = "d4d4e3e8-a3ea-4d73-95ed-95ed85bf85e5"]
+pub struct GeneratedChunkData {
+    pub mesh: Mesh,
+    pub collider: Collider,
 }
 
 #[derive(Component)]
@@ -231,98 +244,102 @@ impl Chunk {
     }
 }
 
-#[derive(Component)]
-struct GenerateChunk(Task<Chunk>);
+impl Chunk {
+    fn trigger_generation(
+        mut commands: Commands,
+        player: Query<&Transform, With<CameraController>>,
+        grid: Res<ChunkGrid>,
+        generator: Res<ChunkGenerator>,
+        settings: Res<Settings>,
+    ) {
+        if settings.update_chunks {
+            let translation = player.single().translation;
+            let player_xz_coordinates = GridCoordinates::new(
+                translation.x.round() as isize,
+                0,
+                translation.z.round() as isize,
+            );
+            let player_grid_coordinates = player_xz_coordinates.to_grid();
+            let task_pool = AsyncComputeTaskPool::get();
 
-#[derive(Component)]
-struct ComputeMesh(Task<Mesh>);
+            for x in -settings.render_distance..=settings.render_distance {
+                for z in -settings.render_distance..=settings.render_distance {
+                    let chunk_coordinates = player_grid_coordinates
+                        + [x * Chunk::WIDTH as isize, 0, z * Chunk::WIDTH as isize];
 
-fn generate_chunks(
-    mut commands: Commands,
-    player: Query<&Transform, With<CameraController>>,
-    grid: Res<ChunkGrid>,
-    generator: Res<ChunkGenerator>,
-    settings: Res<Settings>,
-) {
-    if settings.update_chunks {
-        let translation = player.single().translation;
-        let player_xz_coordinates = GridCoordinates::new(
-            translation.x.round() as isize,
-            0,
-            translation.z.round() as isize,
-        );
-        let player_grid_coordinates = player_xz_coordinates.to_grid();
-        let task_pool = AsyncComputeTaskPool::get();
+                    if !grid.contains_key(&chunk_coordinates) {
+                        let generator = generator.clone();
+                        let grid = grid.clone();
 
-        for x in -settings.render_distance..=settings.render_distance {
-            for z in -settings.render_distance..=settings.render_distance {
-                let chunk_coordinates = player_grid_coordinates
-                    + [x * Chunk::WIDTH as isize, 0, z * Chunk::WIDTH as isize];
+                        let task = task_pool.spawn(ChunkDataGenerationFuture::new(
+                            chunk_coordinates,
+                            generator,
+                            grid.clone(),
+                            settings.mesh_builder,
+                        ));
 
-                if !grid.contains_key(&chunk_coordinates) {
-                    let generator = generator.clone();
+                        commands.spawn((chunk_coordinates, GenerateChunk(task)));
 
-                    let task = task_pool
-                        .spawn(async move { generator.generate_chunk(chunk_coordinates.into()) });
-
-                    commands.spawn((GenerateChunk(task), chunk_coordinates));
-
-                    grid.insert(chunk_coordinates, None);
+                        grid.insert(chunk_coordinates, None);
+                    }
                 }
             }
         }
     }
-}
 
-fn compute_meshes(
-    mut commands: Commands,
-    mut generation_tasks: Query<(Entity, &mut GenerateChunk, &GridCoordinates)>,
-    grid: Res<ChunkGrid>,
-    settings: Res<Settings>,
-) {
-    let task_pool = AsyncComputeTaskPool::get();
-    let mesh_builder_settings = settings.mesh_builder;
+    fn poll_generation_tasks(
+        mut commands: Commands,
+        mut generation_tasks: Query<(Entity, &mut GenerateChunk)>,
+        settings: Res<Settings>,
+        mut chunk_data_assets: ResMut<Assets<GeneratedChunkData>>,
+    ) {
+        for (entity, mut task) in generation_tasks
+            .iter_mut()
+            .take(settings.task_polls_per_frame)
+        {
+            let data = future::block_on(future::poll_once(&mut task.0));
+            //info!("polled task");
+            if let Some(data) = data {
+                let handle = chunk_data_assets.add(data);
 
-    for (entity, mut generation_task, coordinates) in generation_tasks
-        .iter_mut()
-        .take(settings.task_polls_per_frame)
-    {
-        if let Some(chunk) = future::block_on(future::poll_once(&mut generation_task.0)) {
-            let coordinates = *coordinates;
-            let grid = Arc::clone(&grid);
-            let task = task_pool
-                .spawn(async move { grid.compute_mesh(coordinates, chunk, mesh_builder_settings) });
+                commands
+                    .entity(entity)
+                    .insert(handle)
+                    .remove::<GenerateChunk>();
+            }
+        }
+    }
 
-            let mut entity = commands.entity(entity);
-            entity.insert(ComputeMesh(task));
-            entity.remove::<GenerateChunk>();
+    fn insert_meshes_and_colliders(
+        mut commands: Commands,
+        query: Query<(Entity, &Handle<GeneratedChunkData>, &GridCoordinates)>,
+        mut chunk_data_assets: ResMut<Assets<GeneratedChunkData>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+        config: Res<VoxelConfig>,
+        settings: Res<Settings>,
+    ) {
+        for (entity, handle, coordinates) in query.iter().take(settings.mesh_updates_per_frame) {
+            let GeneratedChunkData { mesh, collider } = chunk_data_assets.remove(handle).unwrap();
+
+            commands
+                .entity(entity)
+                .remove::<Handle<GeneratedChunkData>>()
+                .insert((
+                    MaterialMeshBundle {
+                        mesh: meshes.add(mesh),
+                        material: config.material.clone(),
+                        transform: Transform::from_translation((*coordinates).into()),
+                        ..Default::default()
+                    },
+                    collider,
+                    RigidBody::Fixed,
+                ));
         }
     }
 }
 
-fn spawn_chunks(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    config: Res<VoxelConfig>,
-    mut mesh_computation_tasks: Query<(Entity, &mut ComputeMesh, &GridCoordinates)>,
-    settings: Res<Settings>,
-) {
-    for (entity, mut mesh_computation_task, coordinates) in mesh_computation_tasks
-        .iter_mut()
-        .take(settings.mesh_updates_per_frame)
-    {
-        if let Some(mesh) = future::block_on(future::poll_once(&mut mesh_computation_task.0)) {
-            let mut entity = commands.entity(entity);
-            entity.insert(MaterialMeshBundle {
-                mesh: meshes.add(mesh),
-                material: config.material.clone(),
-                transform: Transform::from_translation((*coordinates).into()),
-                ..Default::default()
-            });
-            entity.remove::<ComputeMesh>();
-        }
-    }
-}
+#[derive(Component)]
+struct GenerateChunk(Task<GeneratedChunkData>);
 
 fn unload_chunks(
     mut commands: Commands,
@@ -363,14 +380,7 @@ pub struct DespawnChunk;
 
 fn despawn_chunks(
     mut commands: Commands,
-    chunks: Query<
-        Entity,
-        (
-            With<DespawnChunk>,
-            Without<GenerateChunk>,
-            Without<ComputeMesh>,
-        ),
-    >,
+    chunks: Query<Entity, (With<DespawnChunk>, Without<GenerateChunk>)>,
 ) {
     for entity in chunks.iter().take(20) {
         commands.entity(entity).despawn();

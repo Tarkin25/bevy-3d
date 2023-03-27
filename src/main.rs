@@ -3,6 +3,7 @@
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::{prelude::*, window::WindowMode};
 use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin, ATTRIBUTE_TEXTURE_INDEX};
+use bevy_3d::game::camera_controller::CameraController;
 use bevy_3d::game::chunk::ChunkPlugin;
 use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::DebugInfoPlugin};
 use bevy_3d::menu::MenuPlugin;
@@ -12,6 +13,7 @@ use bevy_3d::skybox::SkyboxPlugin;
 use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_egui::EguiPlugin;
+use bevy_rapier3d::prelude::*;
 
 fn main() {
     App::new()
@@ -35,6 +37,7 @@ fn main() {
                     ..Default::default()
                 }),
         )
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
@@ -52,7 +55,35 @@ fn main() {
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
+        .add_system(spawn_ball.in_set(OnUpdate(AppState::InGame)))
         .run();
+}
+
+fn spawn_ball(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    player: Query<&Transform, With<CameraController>>,
+    input: Res<Input<KeyCode>>,
+) {
+    if input.just_pressed(KeyCode::B) {
+        let translation = player.single().translation;
+
+        commands.spawn((
+            PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::UVSphere {
+                    radius: 0.5,
+                    ..Default::default()
+                })),
+                material: materials.add(StandardMaterial::from(Color::BLUE)),
+                transform: Transform::from_translation(translation),
+                ..Default::default()
+            },
+            RigidBody::Dynamic,
+            Collider::ball(0.5),
+            Restitution::coefficient(0.7),
+        ));
+    }
 }
 
 fn textured_cube(
