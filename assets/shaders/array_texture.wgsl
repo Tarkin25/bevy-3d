@@ -65,6 +65,9 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     var pbr_input: PbrInput = pbr_input_new();
 
     pbr_input.material.base_color = pbr_input.material.base_color * textureSample(array_texture, color_sampler, in.uv, i32(in.texture_index));
+    pbr_input.material.perceptual_roughness = 0.98;
+    pbr_input.material.metallic = 0.0;
+    pbr_input.material.reflectance = 0.1;
     pbr_input.frag_coord = in.frag_coord;
     pbr_input.world_normal = prepare_world_normal(in.world_normal, false, in.is_front);
     pbr_input.world_position = in.world_position;

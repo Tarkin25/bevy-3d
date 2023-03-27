@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::time::Duration;
+
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy::{prelude::*, window::WindowMode};
 use bevy_3d::array_texture::{ArrayTextureMaterial, ArrayTexturePlugin, ATTRIBUTE_TEXTURE_INDEX};
@@ -9,9 +11,9 @@ use bevy_3d::game::{camera_controller::CameraControllerPlugin, debug_info::Debug
 use bevy_3d::menu::MenuPlugin;
 use bevy_3d::my_material::MyMaterialPlugin;
 use bevy_3d::settings::SettingsPlugin;
-use bevy_3d::skybox::SkyboxPlugin;
 use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
+use bevy_atmosphere::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_rapier3d::prelude::*;
 
@@ -42,6 +44,12 @@ fn main() {
             mode: DebugRenderMode::COLLIDER_SHAPES,
             ..Default::default()
         }) */
+        .insert_resource(AtmosphereModel::default())
+        .insert_resource(CycleTimer(Timer::new(
+            Duration::from_millis(100),
+            TimerMode::Repeating,
+        )))
+        .add_plugin(AtmospherePlugin)
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)
@@ -54,13 +62,41 @@ fn main() {
         .add_plugin(DebugInfoPlugin)
         .add_plugin(MyMaterialPlugin)
         .add_plugin(WireframeControllerPlugin)
-        .add_plugin(SkyboxPlugin)
         .add_startup_system(setup_config.in_base_set(StartupSet::PreStartup))
         .add_startup_system(setup_light)
         .add_startup_system(textured_cube)
         .add_system(toggle_app_state)
         .add_system(spawn_ball.in_set(OnUpdate(AppState::InGame)))
+        .add_system(daylight_cycle.in_set(OnUpdate(AppState::InGame)))
         .run();
+}
+
+// Marker for updating the position of the light, not needed unless we have multiple lights
+#[derive(Component)]
+struct Sun;
+
+// Timer for updating the daylight cycle (updating the atmosphere every frame is slow, so it's better to do incremental changes)
+#[derive(Resource)]
+struct CycleTimer(Timer);
+
+// We can edit the Atmosphere resource and it will be updated automatically
+fn daylight_cycle(
+    mut atmosphere: AtmosphereMut<Nishita>,
+    mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
+    mut timer: ResMut<CycleTimer>,
+    time: Res<Time>,
+) {
+    timer.0.tick(time.delta());
+
+    if timer.0.finished() {
+        let t = time.elapsed_seconds_wrapped() as f32 / 20.0;
+        atmosphere.sun_position = Vec3::new(0., t.sin(), t.cos());
+
+        if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
+            light_trans.rotation = Quat::from_rotation_x(-t.sin().atan2(t.cos()));
+            directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
+        }
+    }
 }
 
 fn spawn_ball(
@@ -124,31 +160,33 @@ fn setup_config(
 
 fn setup_light(mut commands: Commands) {
     // Light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            shadows_enabled: true,
+    commands.spawn((
+        /* PointLightBundle {
+            point_light: PointLight {
+                shadows_enabled: true,
+                range: 1000.0,
+                intensity: 100_000.0,
+                ..Default::default()
+            },
+            transform: Transform::from_xyz(4.0, 200.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+            ..Default::default()
+        }, */
+        DirectionalLightBundle {
+            directional_light: DirectionalLight {
+                shadows_enabled: true,
+                ..Default::default()
+            },
+            transform: Transform::from_xyz(4.0, 200.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+            cascade_shadow_config: CascadeShadowConfigBuilder {
+                first_cascade_far_bound: 7.0,
+                maximum_distance: 1000.0,
+                ..Default::default()
+            }
+            .build(),
             ..Default::default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
-        cascade_shadow_config: CascadeShadowConfigBuilder {
-            first_cascade_far_bound: 0.3,
-            maximum_distance: 3.0,
-            ..Default::default()
-        }
-        .build(),
-        ..Default::default()
-    });
-
-    /* commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            shadows_enabled: true,
-            range: 1_500.0,
-            intensity: 0.0,
-            ..Default::default()
-        },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..Default::default()
-    }); */
+        Sun,
+    ));
 }
 
 fn toggle_app_state(

@@ -1,9 +1,8 @@
 use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy_atmosphere::prelude::AtmosphereCamera;
 use bevy_rapier3d::prelude::*;
 
-use crate::{settings::Settings, AppState};
-
-use super::chunk::Chunk;
+use crate::AppState;
 
 #[derive(Clone, Resource)]
 pub struct CameraControllerPlugin {
@@ -18,26 +17,14 @@ impl Plugin for CameraControllerPlugin {
     }
 }
 
-fn setup_camera(
-    mut commands: Commands,
-    plugin: Res<CameraControllerPlugin>,
-    settings: Res<Settings>,
-) {
+fn setup_camera(mut commands: Commands, plugin: Res<CameraControllerPlugin>) {
     commands.spawn((
         Camera3dBundle {
             transform: plugin.transform,
             ..Default::default()
         },
+        AtmosphereCamera::default(),
         CameraController::default(),
-        FogSettings {
-            color: Color::WHITE.with_a(0.1),
-            directional_light_color: Color::rgba(1.0, 0.95, 0.75, 0.5),
-            directional_light_exponent: 30.0,
-            falloff: FogFalloff::Linear {
-                start: ((settings.render_distance - 2) * 2 * Chunk::WIDTH) as f32,
-                end: (settings.render_distance * Chunk::WIDTH * 2) as f32,
-            },
-        },
         KinematicCharacterController {
             ..Default::default()
         },
