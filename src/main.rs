@@ -38,6 +38,10 @@ fn main() {
                 }),
         )
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        /* .add_plugin(RapierDebugRenderPlugin {
+            mode: DebugRenderMode::COLLIDER_SHAPES,
+            ..Default::default()
+        }) */
         .add_plugin(EguiPlugin)
         .add_plugin(CameraControllerPlugin {
             transform: Transform::from_xyz(0.5, 100.0, -1.0)

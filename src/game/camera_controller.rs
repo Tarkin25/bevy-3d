@@ -1,4 +1,5 @@
 use bevy::{input::mouse::MouseMotion, prelude::*};
+use bevy_rapier3d::prelude::*;
 
 use crate::{settings::Settings, AppState};
 
@@ -37,6 +38,11 @@ fn setup_camera(
                 end: (settings.render_distance * Chunk::WIDTH * 2) as f32,
             },
         },
+        KinematicCharacterController {
+            ..Default::default()
+        },
+        Collider::capsule_y(1.0, 0.5),
+        RigidBody::KinematicPositionBased,
     ));
 }
 
@@ -89,11 +95,18 @@ pub fn camera_controller(
     time: Res<Time>,
     mut mouse_events: EventReader<MouseMotion>,
     key_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Transform, &mut CameraController), With<Camera>>,
+    mut query: Query<
+        (
+            &mut Transform,
+            &mut CameraController,
+            &mut KinematicCharacterController,
+        ),
+        With<Camera>,
+    >,
 ) {
     let dt = time.delta_seconds();
 
-    if let Ok((mut transform, mut options)) = query.get_single_mut() {
+    if let Ok((mut transform, mut options, mut controller)) = query.get_single_mut() {
         if !options.initialized {
             let (yaw, pitch, _roll) = transform.rotation.to_euler(EulerRot::YXZ);
             options.yaw = yaw;
@@ -144,9 +157,12 @@ pub fn camera_controller(
         forward.y = 0.0;
         forward = forward.normalize();
         let right = transform.right();
-        transform.translation += options.velocity.x * dt * right
-            + options.velocity.y * dt * Vec3::Y
-            + options.velocity.z * dt * forward;
+
+        controller.translation = Some(
+            options.velocity.x * dt * right
+                + options.velocity.y * dt * Vec3::Y
+                + options.velocity.z * dt * forward,
+        );
 
         // Handle mouse input
         let mut mouse_delta = Vec2::ZERO;
