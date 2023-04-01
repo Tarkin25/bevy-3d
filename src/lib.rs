@@ -1,5 +1,6 @@
 pub mod array_texture;
 pub mod color_grading;
+pub mod daylight_cycle;
 pub mod game;
 pub mod menu;
 pub mod my_material;
