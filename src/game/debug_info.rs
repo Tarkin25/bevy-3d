@@ -9,7 +9,7 @@ pub struct DebugInfoPlugin;
 
 impl Plugin for DebugInfoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(show_debug_info.in_set(OnUpdate(AppState::InGame)));
+        //app.add_systems(Update, show_debug_info.run_if(in_state(AppState::InGame)));
     }
 }
 

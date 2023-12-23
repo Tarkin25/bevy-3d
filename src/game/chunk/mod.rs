@@ -32,8 +32,10 @@ impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ChunkGrid>()
             .init_resource::<ChunkGenerator>()
-            .add_asset::<GeneratedChunkData>()
+            .init_asset::<GeneratedChunkData>()
+            .add_systems(Startup, setup_voxel_material)
             .add_systems(
+                Update,
                 (
                     Chunk::trigger_generation,
                     Chunk::poll_generation_tasks,
@@ -41,9 +43,24 @@ impl Plugin for ChunkPlugin {
                     unload_chunks,
                     despawn_chunks,
                 )
-                    .in_set(OnUpdate(AppState::InGame)),
+                    .run_if(in_state(AppState::InGame)),
             );
     }
+}
+
+#[derive(Resource)]
+struct VoxelMaterial {
+    handle: Handle<StandardMaterial>,
+}
+
+fn setup_voxel_material(mut commands: Commands, mut materials: ResMut<Assets<StandardMaterial>>) {
+    commands.insert_resource(VoxelMaterial {
+        handle: materials.add(StandardMaterial {
+            double_sided: false,
+            base_color: Color::PURPLE,
+            ..Default::default()
+        }),
+    });
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -106,7 +123,7 @@ impl TextureIndices {
     }
 }
 
-#[derive(Component, TypeUuid)]
+#[derive(Component, TypeUuid, TypePath, Asset)]
 #[uuid = "d4d4e3e8-a3ea-4d73-95ed-95ed85bf85e5"]
 pub struct GeneratedChunkData {
     pub mesh: Mesh,
@@ -317,6 +334,7 @@ impl Chunk {
         mut meshes: ResMut<Assets<Mesh>>,
         config: Res<VoxelConfig>,
         settings: Res<Settings>,
+        voxel_material: Res<VoxelMaterial>,
     ) {
         for (entity, handle, coordinates) in query.iter().take(settings.mesh_updates_per_frame) {
             let GeneratedChunkData { mesh, collider } = chunk_data_assets.remove(handle).unwrap();
@@ -327,7 +345,8 @@ impl Chunk {
                 .insert((
                     MaterialMeshBundle {
                         mesh: meshes.add(mesh),
-                        material: config.material.clone(),
+                        //material: config.material.clone(),
+                        material: voxel_material.handle.clone(),
                         transform: Transform::from_translation((*coordinates).into()),
                         ..Default::default()
                     },

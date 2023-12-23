@@ -12,8 +12,8 @@ pub struct CameraControllerPlugin {
 impl Plugin for CameraControllerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.clone())
-            .add_startup_system(setup_camera)
-            .add_system(camera_controller.in_set(OnUpdate(AppState::InGame)));
+            .add_systems(Startup, setup_camera)
+            .add_systems(Update, camera_controller.run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -66,7 +66,7 @@ impl Default for CameraController {
             key_right: KeyCode::L,
             key_up: KeyCode::Space,
             key_down: KeyCode::N,
-            key_run: KeyCode::RShift,
+            key_run: KeyCode::ShiftRight,
             key_reset: KeyCode::R,
             walk_speed: 20.0,
             run_speed: 40.0,
@@ -153,7 +153,7 @@ pub fn camera_controller(
 
         // Handle mouse input
         let mut mouse_delta = Vec2::ZERO;
-        for mouse_event in mouse_events.iter() {
+        for mouse_event in mouse_events.read() {
             mouse_delta += mouse_event.delta;
         }
 

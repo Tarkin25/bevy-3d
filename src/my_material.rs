@@ -10,11 +10,12 @@ pub struct MyMaterialPlugin;
 
 impl Plugin for MyMaterialPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(MaterialPlugin::<MyMaterial>::default())
-            .add_startup_system(setup)
+        app.add_plugins(MaterialPlugin::<MyMaterial>::default())
+            .add_systems(Startup, setup)
             .add_systems(
+                Update,
                 (move_movables, update_material_time, update_transparency)
-                    .in_set(OnUpdate(AppState::InGame)),
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -39,7 +40,7 @@ fn setup(
     ));
 }
 
-#[derive(AsBindGroup, TypeUuid, Clone)]
+#[derive(AsBindGroup, TypeUuid, Clone, Asset, TypePath)]
 #[uuid = "f690fdae-d598-45ab-8225-97e2a3f056e0"]
 pub struct MyMaterial {
     #[uniform(0)]

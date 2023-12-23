@@ -15,12 +15,10 @@ impl Plugin for DaylightCyclePlugin {
             TimerMode::Repeating,
         )))
         .insert_resource(DaylightCycleSettings { speed: 1.0 })
-        .add_plugin(ResourceInspectorPlugin::<DaylightCycleSettings>::default())
-        .add_startup_system(InGameTime::setup)
-        .add_system(InGameTime::update)
-        .add_system(Sun::cycle)
-        .add_system(InGameTime::pause.in_schedule(OnExit(AppState::InGame)))
-        .add_system(InGameTime::unpause.in_schedule(OnEnter(AppState::InGame)));
+        .add_plugins(ResourceInspectorPlugin::<DaylightCycleSettings>::default())
+        .add_systems(Update, Sun::cycle)
+        .add_systems(OnExit(AppState::InGame), pause)
+        .add_systems(OnEnter(AppState::InGame), unpause);
     }
 }
 
@@ -32,7 +30,7 @@ impl Sun {
         mut atmosphere: AtmosphereMut<Nishita>,
         mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
         mut timer: ResMut<CycleTimer>,
-        time: Res<InGameTime>,
+        time: Res<Time<Virtual>>,
         settings: Res<DaylightCycleSettings>,
     ) {
         timer.0.tick(time.delta());
@@ -49,25 +47,12 @@ impl Sun {
     }
 }
 
-#[derive(Resource, Deref)]
-pub struct InGameTime(Time);
+fn pause(mut time: ResMut<Time<Virtual>>) {
+    time.pause();
+}
 
-impl InGameTime {
-    fn setup(mut commands: Commands, time: Res<Time>) {
-        commands.insert_resource(InGameTime(time.clone()));
-    }
-
-    fn update(mut in_game_time: ResMut<InGameTime>) {
-        in_game_time.0.update();
-    }
-
-    fn pause(mut in_game_time: ResMut<InGameTime>) {
-        in_game_time.0.pause();
-    }
-
-    fn unpause(mut in_game_time: ResMut<InGameTime>) {
-        in_game_time.0.unpause();
-    }
+fn unpause(mut time: ResMut<Time<Virtual>>) {
+    time.unpause();
 }
 
 #[derive(Resource, Reflect, InspectorOptions)]

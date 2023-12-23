@@ -10,8 +10,8 @@ pub struct SettingsPlugin;
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Settings::default())
-            .add_plugin(ResourceInspectorPlugin::<Settings>::default())
-            .add_system(update_render_distance);
+            .add_plugins(ResourceInspectorPlugin::<Settings>::default())
+            .add_systems(Update, update_render_distance);
     }
 }
 

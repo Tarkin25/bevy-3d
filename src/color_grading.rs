@@ -6,8 +6,8 @@ pub struct ColorGradingPlugin;
 impl Plugin for ColorGradingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColorGradingSettings>()
-            .add_plugin(ResourceInspectorPlugin::<ColorGradingSettings>::default())
-            .add_system(ColorGradingSettings::apply);
+            .add_plugins(ResourceInspectorPlugin::<ColorGradingSettings>::default())
+            .add_systems(Update, ColorGradingSettings::apply);
     }
 }
 

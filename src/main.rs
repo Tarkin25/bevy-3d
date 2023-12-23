@@ -12,6 +12,7 @@ use bevy_3d::wireframe_controller::WireframeControllerPlugin;
 use bevy_3d::{AppState, VoxelConfig};
 use bevy_atmosphere::prelude::*;
 use bevy_egui::EguiPlugin;
+use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 use bevy_rapier3d::prelude::*;
 
 fn main() {
@@ -21,42 +22,37 @@ fn main() {
         .init_schedule(OnExit(AppState::Menu))
         .init_schedule(OnEnter(AppState::InGame))
         .init_schedule(OnExit(AppState::InGame))
-        .add_plugins(
-            DefaultPlugins
-                .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Voxels".into(),
-                        mode: WindowMode::BorderlessFullscreen,
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-                .set(AssetPlugin {
-                    watch_for_changes: true,
-                    ..Default::default()
-                }),
-        )
-        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Voxels".into(),
+                mode: WindowMode::BorderlessFullscreen,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .insert_resource(AtmosphereModel::default())
-        .add_plugin(AtmospherePlugin)
-        .add_plugin(EguiPlugin)
-        .add_plugin(CameraControllerPlugin {
-            transform: Transform::from_xyz(0.5, 100.0, -1.0)
-                .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
-        })
-        .add_plugin(ArrayTexturePlugin)
-        .add_plugin(ChunkPlugin)
-        .add_plugin(SettingsPlugin)
-        .add_plugin(MenuPlugin)
-        .add_plugin(DebugInfoPlugin)
-        .add_plugin(MyMaterialPlugin)
-        .add_plugin(WireframeControllerPlugin)
-        .add_plugin(DaylightCyclePlugin)
-        .add_startup_system(setup_config.in_base_set(StartupSet::PreStartup))
-        .add_startup_system(setup_light)
-        .add_startup_system(textured_cube)
-        .add_system(toggle_app_state)
-        .add_system(spawn_ball.in_set(OnUpdate(AppState::InGame)))
+        .add_plugins((
+            //EguiPlugin,
+            DefaultInspectorConfigPlugin,
+            AtmospherePlugin,
+            CameraControllerPlugin {
+                transform: Transform::from_xyz(0.5, 100.0, -1.0)
+                    .looking_at(Vec3::new(0.0, 99.0, 0.0), Vec3::Y),
+            },
+            ArrayTexturePlugin,
+            ChunkPlugin,
+            SettingsPlugin,
+            MenuPlugin,
+            DebugInfoPlugin,
+            MyMaterialPlugin,
+            WireframeControllerPlugin,
+            DaylightCyclePlugin,
+        ))
+        .add_systems(PreStartup, setup_config)
+        .add_systems(Startup, (setup_light, textured_cube))
+        .add_systems(Update, toggle_app_state)
+        .add_systems(Update, spawn_ball.run_if(in_state(AppState::InGame)))
         .run();
 }
 
@@ -113,7 +109,7 @@ fn setup_config(
 ) {
     let material = materials.add(ArrayTextureMaterial::with_resolution(
         asset_server.load("textures/texture-atlas.png"),
-        32.0,
+        32,
     ));
 
     commands.insert_resource(VoxelConfig { material });
@@ -155,7 +151,7 @@ fn toggle_app_state(
     input: Res<Input<KeyCode>>,
 ) {
     if input.just_pressed(KeyCode::Escape) {
-        let new_state = match state.0 {
+        let new_state = match state.get() {
             AppState::InGame => AppState::Menu,
             AppState::Menu => AppState::InGame,
         };

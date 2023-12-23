@@ -18,11 +18,11 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(configure_egui)
-            .add_system(free_cursor.in_schedule(OnEnter(AppState::Menu)))
-            .add_system(show_menu.in_set(OnUpdate(AppState::Menu)))
+        app.add_systems(OnEnter(AppState::Menu), free_cursor)
+            //.add_systems(Update, show_menu.run_if(in_state(AppState::Menu)))
             .add_systems(
-                (capture_cursor, apply_noise_settings).in_schedule(OnEnter(AppState::InGame)),
+                OnEnter(AppState::InGame),
+                (capture_cursor, apply_noise_settings),
             );
     }
 }
@@ -42,8 +42,6 @@ fn capture_cursor(mut windows: Query<&mut Window>) {
         window.cursor.visible = false;
     }
 }
-
-fn configure_egui() {}
 
 fn show_menu(
     mut context: EguiContexts,
